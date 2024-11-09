@@ -1,0 +1,58 @@
+name: バグ報告
+description: バグを報告する
+body:
+  - type: textarea
+    attributes:
+      label: バグの説明
+      description: バグの簡単な説明を書いてください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 期待される動作
+      description: 期待される動作を説明してください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 実際の動作
+      description: 実際の動作を説明してください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 再現手順
+      description: バグの再現手順を記述してください。
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: バージョン情報
+      description: バージョン情報を提供してください。関連性がない場合は省略できます。
+      placeholder: |
+        - OS:
+        - ROS 2:
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: 考えられる原因
+      description: 考えられる原因があれば記入してください。
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: 追加情報
+      description: その他追加の情報があれば記入してください。
+    validations:
+      required: false

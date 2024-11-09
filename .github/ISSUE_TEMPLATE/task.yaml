@@ -1,0 +1,30 @@
+name: タスク
+description: タスクを計画する
+body:
+  - type: textarea
+    attributes:
+      label: タスクの説明
+      description: タスクの簡単な説明を書いてください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 目的
+      description: タスクの目的を説明してください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 考えられるアプローチ
+      description: タスクに対する考えられるアプローチを説明してください。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 完了の定義
+      description: このタスクの完了の定義を書いてください。
+    validations:
+      required: true
