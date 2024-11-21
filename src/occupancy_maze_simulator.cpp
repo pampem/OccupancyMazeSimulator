@@ -53,6 +53,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   }
 
   occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
+  slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("glim_ros/pose", 10);
   goal_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("goal_position", 10);
 
@@ -93,6 +94,11 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
       std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
   }
   last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+
+  slam_grid_map_ = create_empty_grid_map();
+
+  publish_slam_gridmap_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_slam_gridmap, this));
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
@@ -120,6 +126,22 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
       RCLCPP_WARN(this->get_logger(), "Obstacle out of grid bounds at (%d, %d)", cell_x, cell_y);
     }
   }
+  return grid_msg;
+}
+
+nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
+{
+  nav_msgs::msg::OccupancyGrid grid_msg;
+  grid_msg.info.resolution = cell_size_;
+  grid_msg.info.origin.orientation.w = 1.0;
+  grid_msg.info.width = num_cells_x_;
+  grid_msg.info.height = num_cells_y_;
+  grid_msg.info.origin.position.x = 0.0;
+  grid_msg.info.origin.position.y = 0.0;
+  grid_msg.data.resize(num_cells_x_ * num_cells_y_, 0);  // 0で初期化
+  grid_msg.header.frame_id = "odom";
+  grid_msg.header.stamp = this->get_clock()->now();
+
   return grid_msg;
 }
 
@@ -280,6 +302,77 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   robot_x_ += delta_x;
   robot_y_ += delta_y;
   yaw_ += delta_yaw;
+}
+
+void OccupancyMazeSimulator::simulate_lidar_scan()
+{
+  const int num_lidar_rays = 360;       // 360本のレーザー
+  const double max_lidar_range = 10.0;  // LiDARの最大範囲 (メートル)
+  const double angle_increment = 2 * M_PI / num_lidar_rays;
+
+  for (int i = 0; i < num_lidar_rays; ++i) {
+    double angle = i * angle_increment + yaw_;
+    double end_x = robot_x_ + max_lidar_range * std::cos(angle);
+    double end_y = robot_y_ + max_lidar_range * std::sin(angle);
+
+    // グリッド座標に変換
+    int start_cell_x = static_cast<int>(std::round(robot_x_ / cell_size_));
+    int start_cell_y = static_cast<int>(std::round(robot_y_ / cell_size_));
+    int end_cell_x = static_cast<int>(std::round(end_x / cell_size_));
+    int end_cell_y = static_cast<int>(std::round(end_y / cell_size_));
+
+    // Bresenhamのアルゴリズムを適用
+    int dx = std::abs(end_cell_x - start_cell_x);
+    int dy = std::abs(end_cell_y - start_cell_y);
+    int sx = (start_cell_x < end_cell_x) ? 1 : -1;
+    int sy = (start_cell_y < end_cell_y) ? 1 : -1;
+    int err = dx - dy;
+
+    int current_x = start_cell_x;
+    int current_y = start_cell_y;
+
+    while (true) {
+      // 範囲外チェック
+      if (
+        current_x < 0 || current_x >= num_cells_x_ || current_y < 0 || current_y >= num_cells_y_) {
+        break;
+      }
+
+      int index = current_y * num_cells_x_ + current_x;
+
+      // 障害物セルに到達した場合、SLAMマップを更新して終了
+      if (grid_map_.data[index] == 100) {
+        slam_grid_map_.data[index] = 100;
+        break;
+      }
+
+      // 空きセルの場合、SLAMマップを非占有のまま
+      slam_grid_map_.data[index] = 0;
+
+      // ゴールに到達した場合
+      if (current_x == end_cell_x && current_y == end_cell_y) {
+        break;
+      }
+
+      // 次のセルへ進む
+      int e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        current_x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        current_y += sy;
+      }
+    }
+  }
+}
+
+void OccupancyMazeSimulator::publish_slam_gridmap()
+{
+  simulate_lidar_scan();
+  slam_grid_map_.header.stamp = this->get_clock()->now();
+  slam_grid_publisher_->publish(slam_grid_map_);
 }
 
 // Alt option for robot position simulation Not TESTED, so comment out for now

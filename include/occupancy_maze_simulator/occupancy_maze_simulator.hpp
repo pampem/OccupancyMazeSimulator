@@ -43,6 +43,8 @@ private:
     const std::vector<Obstacle> & obstacles, const std::pair<int, int> & area_size,
     float cell_size);
 
+  nav_msgs::msg::OccupancyGrid create_empty_grid_map();
+
   void twist_callback(geometry_msgs::msg::Twist::SharedPtr msg);
 
   static std::vector<Obstacle> generate_random_obstacles(
@@ -66,15 +68,20 @@ private:
 
   void publish_gridmap();
 
+  void publish_slam_gridmap();
+
+  void simulate_lidar_scan();
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
+  rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
   rclcpp::Time last_update_time_;
 
-  double yaw_;
-  double robot_x_;
-  double robot_y_;
-  double current_linear_velocity_;
-  double current_angular_velocity_;
+  double yaw_ = 0.0;
+  double robot_x_ = 0.0;
+  double robot_y_ = 0.0;
+  double current_linear_velocity_ = 0.0;
+  double current_angular_velocity_ = 0.0;
 
   int num_cells_x_;
   int num_cells_y_;
@@ -83,11 +90,13 @@ private:
   float cell_size_;
   float maze_density_;
   nav_msgs::msg::OccupancyGrid grid_map_;
+  nav_msgs::msg::OccupancyGrid slam_grid_map_;
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
+  rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
