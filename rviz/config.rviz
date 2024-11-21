@@ -7,6 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
+        - /Obstacle's Occupancy Grid Map1
         - /Axes1
         - /Pose1
         - /Pose2
@@ -15,6 +16,7 @@ Panels:
         - /Centroids1
         - /Intersections1
         - /Rotational Force1
+        - /slam_gridmap1
       Splitter Ratio: 0.5
     Tree Height: 508
   - Class: rviz_common/Selection
@@ -56,7 +58,7 @@ Visualization Manager:
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-    - Alpha: 0.699999988079071
+    - Alpha: 0.5
       Class: rviz_default_plugins/Map
       Color Scheme: map
       Draw Behind: false
@@ -230,10 +232,10 @@ Visualization Manager:
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
-      Color Scheme: map
+      Color Scheme: costmap
       Draw Behind: false
       Enabled: true
-      Name: Map
+      Name: slam_gridmap
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -295,7 +297,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 100.07605743408203
+      Distance: 77.4989013671875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -310,10 +312,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 0.814797043800354
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.258583068847656
+      Yaw: 3.9135806560516357
     Saved: ~
 Window Geometry:
   Displays:

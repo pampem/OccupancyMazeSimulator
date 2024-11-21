@@ -129,7 +129,8 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
   return grid_msg;
 }
 
-nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map(){
+nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
+{
   nav_msgs::msg::OccupancyGrid grid_msg;
   grid_msg.info.resolution = cell_size_;
   grid_msg.info.origin.orientation.w = 1.0;
@@ -311,30 +312,58 @@ void OccupancyMazeSimulator::simulate_lidar_scan()
 
   for (int i = 0; i < num_lidar_rays; ++i) {
     double angle = i * angle_increment + yaw_;
-    double cos_a = std::cos(angle);
-    double sin_a = std::sin(angle);
+    double end_x = robot_x_ + max_lidar_range * std::cos(angle);
+    double end_y = robot_y_ + max_lidar_range * std::sin(angle);
 
-    for (double r = 0.0; r <= max_lidar_range; r += cell_size_) {
-      double x = robot_x_ + r * cos_a;
-      double y = robot_y_ + r * sin_a;
+    // グリッド座標に変換
+    int start_cell_x = static_cast<int>(std::round(robot_x_ / cell_size_));
+    int start_cell_y = static_cast<int>(std::round(robot_y_ / cell_size_));
+    int end_cell_x = static_cast<int>(std::round(end_x / cell_size_));
+    int end_cell_y = static_cast<int>(std::round(end_y / cell_size_));
 
-      int cell_x = static_cast<int>(std::round(x / cell_size_));
-      int cell_y = static_cast<int>(std::round(y / cell_size_));
+    // Bresenhamのアルゴリズムを適用
+    int dx = std::abs(end_cell_x - start_cell_x);
+    int dy = std::abs(end_cell_y - start_cell_y);
+    int sx = (start_cell_x < end_cell_x) ? 1 : -1;
+    int sy = (start_cell_y < end_cell_y) ? 1 : -1;
+    int err = dx - dy;
 
-      // グリッド範囲外なら終了
-      if (cell_x < 0 || cell_x >= num_cells_x_ || cell_y < 0 || cell_y >= num_cells_y_) {
+    int current_x = start_cell_x;
+    int current_y = start_cell_y;
+
+    while (true) {
+      // 範囲外チェック
+      if (
+        current_x < 0 || current_x >= num_cells_x_ || current_y < 0 || current_y >= num_cells_y_) {
         break;
       }
 
-      int index = cell_y * num_cells_x_ + cell_x;
+      int index = current_y * num_cells_x_ + current_x;
 
-      // 障害物セルに到達したら終了
+      // 障害物セルに到達した場合、SLAMマップを更新して終了
       if (grid_map_.data[index] == 100) {
-        slam_grid_map_.data[index] = 100;  // 障害物としてマーク
+        slam_grid_map_.data[index] = 100;
         break;
       }
 
+      // 空きセルの場合、SLAMマップを非占有のまま
       slam_grid_map_.data[index] = 0;
+
+      // ゴールに到達した場合
+      if (current_x == end_cell_x && current_y == end_cell_y) {
+        break;
+      }
+
+      // 次のセルへ進む
+      int e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        current_x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        current_y += sy;
+      }
     }
   }
 }
