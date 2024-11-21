@@ -77,11 +77,11 @@ private:
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
   rclcpp::Time last_update_time_;
 
-  double yaw_ = 0.0F;
-  double robot_x_ = 0.0F;
-  double robot_y_ = 0.0F;
-  double current_linear_velocity_ = 0.0F;
-  double current_angular_velocity_ = 0.0F;
+  double yaw_ = 0.0;
+  double robot_x_ = 0.0;
+  double robot_y_ = 0.0;
+  double current_linear_velocity_ = 0.0;
+  double current_angular_velocity_ = 0.0;
 
   int num_cells_x_;
   int num_cells_y_;
