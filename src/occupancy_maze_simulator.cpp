@@ -20,7 +20,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.resolution", 1);
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
-  this->declare_parameter<std::vector<int>>("start_position", {1, 1});
+  // TODO(Izumita): start_position, goal_positionはpath_plannerからTopicで受け取るように変更。
+  this->declare_parameter<std::vector<int>>("start_position", {0, 0});
   this->declare_parameter<std::vector<int>>("goal_position", {48, 48});
   this->declare_parameter<float>("maze.density", 0.3F);  // 障害物の密度（0.0～1.0）
 
@@ -61,22 +62,60 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     "drone1/mavros/setpoint_velocity/cmd_vel_unstamped", 10,
     std::bind(&OccupancyMazeSimulator::twist_callback, this, std::placeholders::_1));
 
+  reset_subscriber_ = this->create_subscription<std_msgs::msg::Empty>(
+    "reset", 10, std::bind(&OccupancyMazeSimulator::reset_callback, this, std::placeholders::_1));
+
   publish_pose_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
 
+  // std::vector<Obstacle> obstacles;
+  // int count = 0;
+  // bool path_exists = false;
+  // do {
+  //   if (obstacle_mode == "maze") {
+  //     obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
+  //   } else if (obstacle_mode == "random") {
+  //     obstacles = generate_random_obstacles(10, {num_cells_x_, num_cells_y_});
+  //   } else {
+  //     RCLCPP_WARN(this->get_logger(), "Invalid obstacle_mode. Defaulting to maze mode.");
+  //     obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
+  //   }
+
+  //   grid_map_ = create_grid_map(obstacles, {num_cells_x_, num_cells_y_}, cell_size_);
+  //   path_exists = is_path_to_goal(grid_map_, start_position_, goal_position_);
+  //   if (!path_exists) {
+  //     RCLCPP_WARN(this->get_logger(), "No path to the goal exists. Regenerating obstacles.");
+  //     ++count;
+  //   }
+  //   if (count >= 100) {
+  //     RCLCPP_ERROR(this->get_logger(), "Couldn't create valid obstacles. Check your
+  //     parameters."); return;
+  //   }
+  // } while (!path_exists && count < 100);
+  // if (count < 100) {
+  //   RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
+  //   publish_gridmap_timer_ = this->create_wall_timer(
+  //     std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+  // }
+  // last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+
+  // slam_grid_map_ = create_empty_grid_map();
+
+  // publish_slam_gridmap_timer_ = this->create_wall_timer(
+  //   std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_slam_gridmap,
+  //   this));
+
+  reset_callback(std_msgs::msg::Empty::SharedPtr());
+}
+
+void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*msg*/)
+{
+  RCLCPP_INFO(this->get_logger(), "Resetting the simulation environment.");
   std::vector<Obstacle> obstacles;
   int count = 0;
   bool path_exists = false;
   do {
-    if (obstacle_mode == "maze") {
-      obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
-    } else if (obstacle_mode == "random") {
-      obstacles = generate_random_obstacles(10, {num_cells_x_, num_cells_y_});
-    } else {
-      RCLCPP_WARN(this->get_logger(), "Invalid obstacle_mode. Defaulting to maze mode.");
-      obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
-    }
-
+    obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
     grid_map_ = create_grid_map(obstacles, {num_cells_x_, num_cells_y_}, cell_size_);
     path_exists = is_path_to_goal(grid_map_, start_position_, goal_position_);
     if (!path_exists) {
@@ -99,6 +138,14 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   publish_slam_gridmap_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_slam_gridmap, this));
+
+  yaw_ = 0.0;
+  robot_x_ = static_cast<double>(start_position_.first);
+  robot_y_ = static_cast<double>(start_position_.second);
+  // robot_x_ = start_position_.x();
+  // robot_y_ = start_position_.y();
+  current_linear_velocity_ = 0.0;
+  current_angular_velocity_ = 0.0;
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
