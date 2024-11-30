@@ -3,7 +3,7 @@
          type="occupancy_maze_simulator_rviz_plugins::ButtonPanel"
          base_class_type="rviz_common::Panel">
     <description>
-      ButtonPanelはボタンのクリック時にメッセージをパブリッシュします。
+      ButtonPanelはResetボタンのクリック時にresetトピックをPublishします。
     </description>
   </class>
 </library>
