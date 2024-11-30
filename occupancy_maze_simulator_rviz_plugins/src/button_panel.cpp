@@ -27,8 +27,13 @@ ButtonPanel::ButtonPanel(QWidget * parent) : rviz_common::Panel(parent)
 
 void ButtonPanel::onInitialize()
 {
-  node_ = std::make_shared<rclcpp::Node>("button_panel_node");
-  reset_publisher_ = node_->create_publisher<std_msgs::msg::Empty>("reset", 10);
+  try {
+    node_ = std::make_shared<rclcpp::Node>("button_panel_node");
+    reset_publisher_ = node_->create_publisher<std_msgs::msg::Empty>("reset", 10);
+  } catch (const rclcpp::exceptions::RCLError & e) {
+    RCLCPP_ERROR(rclcpp::get_logger("button_panel"), "Failed to initialize ROS 2 node: %s", e.what());
+    throw;
+  }
 }
 
 void ButtonPanel::on_reset_button_clicked()
