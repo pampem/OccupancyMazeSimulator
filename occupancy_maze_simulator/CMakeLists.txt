@@ -17,6 +17,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(std_msgs REQUIRED)
 
 include_directories(
   include
@@ -32,6 +33,7 @@ ament_target_dependencies(occupancy_maze_simulator
   nav_msgs
   tf2
   tf2_ros
+  std_msgs
 )
 
 target_include_directories(

@@ -13,6 +13,7 @@
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <std_msgs/msg/empty.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -72,6 +73,8 @@ private:
 
   void simulate_lidar_scan();
 
+  void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
@@ -100,6 +103,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator

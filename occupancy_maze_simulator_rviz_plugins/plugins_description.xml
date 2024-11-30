@@ -1,0 +1,9 @@
+<library path="button_panel">
+  <class name="occupancy_maze_simulator_rviz_plugins/ButtonPanel"
+         type="occupancy_maze_simulator_rviz_plugins::ButtonPanel"
+         base_class_type="rviz_common::Panel">
+    <description>
+      ButtonPanelはResetボタンのクリック時にresetトピックをPublishします。
+    </description>
+  </class>
+</library>
