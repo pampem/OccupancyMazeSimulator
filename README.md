@@ -1,6 +1,7 @@
 # Occupancy Maze Simulator
 
 This package allows you to test your path planning node by providing a maze-based occupancy grid message and a simulated robot pose response. It includes random maze generation, start and goal positioning, and interactive feedback with Twist commands for movement.
+
 ## Example Usage
 
 ```bash
@@ -19,4 +20,4 @@ ros2 run occupancy_maze_simulator occupancy_maze_simulator_node \
 
 obstacle_mode: maze or random
 
-![poem](doc/media/poemByCodeRabbit.png)
+![poem](occupancy_maze_simulator/doc/media/poemByCodeRabbit.png)
