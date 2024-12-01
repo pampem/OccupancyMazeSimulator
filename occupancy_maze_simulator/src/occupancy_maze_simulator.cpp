@@ -20,7 +20,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.resolution", 1);
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
-  // TODO(Izumita): #9 start_position, goal_positionはpath_plannerからTopicで受け取るように変更。
+  // TODO(Izumita): #9 start_position, goal_positionはpath_plannerにTopic渡しするように変更
   this->declare_parameter<std::vector<int>>("start_position", {0, 0});
   this->declare_parameter<std::vector<int>>("goal_position", {48, 48});
   this->declare_parameter<float>("maze.density", 0.3F);  // 障害物の密度（0.0～1.0）
@@ -57,6 +57,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("glim_ros/pose", 10);
   goal_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("goal_position", 10);
+  text_marker_publisher_ =
+    this->create_publisher<visualization_msgs::msg::Marker>("text_marker", 10);
 
   twist_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
     "drone1/mavros/setpoint_velocity/cmd_vel_unstamped", 10,
@@ -105,6 +107,7 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   yaw_ = 0.0;
   robot_x_ = static_cast<double>(start_position_.first);
   robot_y_ = static_cast<double>(start_position_.second);
+  // Eigen形式にする? pose形式にするか。
   // robot_x_ = start_position_.x();
   // robot_y_ = start_position_.y();
   current_linear_velocity_ = 0.0;
@@ -287,6 +290,18 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
     msg->angular.z);
   simulate_robot_position(msg);
   // simulate_drone_movement(msg);
+
+  // Evaluation Robot位置がゴールに十分近いかどうか
+  // 近ければReset
+  if (
+    robot_x_ > goal_position_.first * cell_size_ - 0.5 &&
+    robot_x_ < goal_position_.first * cell_size_ + 0.5 &&
+    robot_y_ > goal_position_.second * cell_size_ - 0.5 &&
+    robot_y_ < goal_position_.second * cell_size_ + 0.5) {
+    RCLCPP_INFO(this->get_logger(), "Goal Reached. Resetting the simulation.");
+    publish_text_marker("Robot reached the goal. Resetting the simulation.");
+    reset_callback(std_msgs::msg::Empty::SharedPtr());
+  }
 }
 
 void OccupancyMazeSimulator::publish_gridmap()
@@ -304,14 +319,15 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   last_update_time_ = current_time;
 
   // Update position based on both x and y velocities and orientation
-  double delta_x = msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
-  double delta_y = msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
+  double delta_x =
+    msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
+  double delta_y =
+    msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
   double delta_yaw = msg->angular.z * dt;
   // double delta_x = msg->linear.x * dt;
   // double delta_y = msg->linear.y * dt;
   // double delta_yaw = msg->angular.z * dt;
 
-  // Update robot's position and orientation
   robot_x_ += delta_x;
   robot_y_ += delta_y;
   yaw_ += delta_yaw;
@@ -395,6 +411,35 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
+void OccupancyMazeSimulator::publish_text_marker(std::string visualize_text)
+{
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "odom";
+  marker.header.stamp = this->now();
+  marker.ns = "text_marker";
+  marker.id = 999;
+  marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+
+  marker.pose.position.x = 1.0;
+  marker.pose.position.y = 1.0;
+  marker.pose.position.z = 1.0;
+  marker.pose.orientation.x = 0.0;
+  marker.pose.orientation.y = 0.0;
+  marker.pose.orientation.z = 0.0;
+  marker.pose.orientation.w = 1.0;
+
+  marker.scale.z = 2.0;
+  marker.color.a = 1.0;
+  marker.color.r = 1.0;
+  marker.color.g = 1.0;
+  marker.color.b = 1.0;
+  marker.lifetime = rclcpp::Duration::from_seconds(1);
+
+  marker.text = visualize_text;
+
+  text_marker_publisher_->publish(marker);
+}
 // Alt option for robot position simulation Not TESTED, so comment out for now
 // void OccupancyMazeSimulator::simulate_drone_movement(
 //   geometry_msgs::msg::Twist::SharedPtr target_twist)

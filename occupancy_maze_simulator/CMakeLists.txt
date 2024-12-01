@@ -18,6 +18,7 @@ find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 include_directories(
   include
@@ -34,6 +35,7 @@ ament_target_dependencies(occupancy_maze_simulator
   tf2
   tf2_ros
   std_msgs
+  visualization_msgs
 )
 
 target_include_directories(

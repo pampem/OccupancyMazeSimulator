@@ -14,6 +14,7 @@
 #include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -21,6 +22,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <string>
 
 namespace occupancy_maze_simulator
 {
@@ -63,7 +65,7 @@ private:
   // Simple option to simulate robot movement (default)
   void simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg);
   // Alternative option to simulate robot movement (currently not implemented)
-  void simulate_drone_movement(geometry_msgs::msg::Twist::SharedPtr target_twist);
+  // void simulate_drone_movement(geometry_msgs::msg::Twist::SharedPtr target_twist);
 
   void publish_pose();
 
@@ -74,6 +76,8 @@ private:
   void simulate_lidar_scan();
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
+
+  void publish_text_marker(std::string visualize_text);
 
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
@@ -102,6 +106,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
 };

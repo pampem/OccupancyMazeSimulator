@@ -279,6 +279,19 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /nsp_marker
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: text_marker
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /text_marker
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
