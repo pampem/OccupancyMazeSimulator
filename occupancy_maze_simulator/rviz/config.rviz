@@ -3,22 +3,7 @@ Panels:
     Help Height: 99
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Global Options1
-        - /Status1
-        - /Grid1
-        - /Obstacle's Occupancy Grid Map1
-        - /Axes1
-        - /Pose1
-        - /Pose2
-        - /Pose3
-        - /Contours1
-        - /Centroids1
-        - /Intersections1
-        - /Rotational Force1
-        - /slam_gridmap1
-        - /ngp_marker1
-        - /nsp_marker1
+      Expanded: ~
       Splitter Ratio: 0.5
     Tree Height: 283
   - Class: rviz_common/Selection
@@ -94,31 +79,11 @@ Visualization Manager:
       Axes Length: 1
       Axes Radius: 0.10000000149011612
       Class: rviz_default_plugins/Pose
-      Color: 255; 25; 0
-      Enabled: false
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Pose
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Arrow
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /goal_pose
-      Value: false
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz_default_plugins/Pose
-      Color: 255; 25; 0
+      Color: 79; 255; 114
       Enabled: true
       Head Length: 0.5
       Head Radius: 0
-      Name: Pose
+      Name: Start_pose
       Shaft Length: 0.5
       Shaft Radius: 0.5
       Shape: Arrow
@@ -128,7 +93,27 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /goal_position
+        Value: /start_pose
+      Value: true
+    - Alpha: 1
+      Axes Length: 1
+      Axes Radius: 0.10000000149011612
+      Class: rviz_default_plugins/Pose
+      Color: 255; 17; 192
+      Enabled: true
+      Head Length: 0.5
+      Head Radius: 0
+      Name: Target
+      Shaft Length: 0.5
+      Shaft Radius: 0.5
+      Shape: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /target_pose
       Value: true
     - Alpha: 1
       Axes Length: 1
@@ -138,7 +123,7 @@ Visualization Manager:
       Enabled: true
       Head Length: 0.5
       Head Radius: 0.5
-      Name: Pose
+      Name: Robot_pose
       Shaft Length: 1
       Shaft Radius: 0.30000001192092896
       Shape: Arrow
@@ -209,18 +194,6 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /centroids_marker
-      Value: true
-    - Class: rviz_default_plugins/MarkerArray
-      Enabled: true
-      Name: Intersections
-      Namespaces:
-        {}
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /intersections_marker
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
@@ -338,25 +311,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 81.04370880126953
+      Distance: 95.28791809082031
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 25.30027198791504
-        Y: 28.527681350708008
-        Z: -15.320201873779297
+        X: 34.69873046875
+        Y: 27.601377487182617
+        Z: -24.6407470703125
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0197968482971191
+      Pitch: 1.1747967004776
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.413573741912842
+      Yaw: 4.2235636711120605
     Saved: ~
 Window Geometry:
   ButtonPanel:

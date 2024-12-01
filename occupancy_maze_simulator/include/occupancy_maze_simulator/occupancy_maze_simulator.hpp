@@ -9,6 +9,7 @@
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
 
+#include <geometry_msgs/msg/detail/pose_stamped__struct.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
@@ -58,9 +59,9 @@ private:
 
   static Obstacle create_obstacle(double x, double y, double width, double height, double angle);
 
-  static bool is_path_to_goal(
-    const nav_msgs::msg::OccupancyGrid & grid_map, const std::pair<int, int> & start,
-    const std::pair<int, int> & goal);
+  bool is_path_to_target(
+  const nav_msgs::msg::OccupancyGrid & grid_map, geometry_msgs::msg::PoseStamped & start,
+  geometry_msgs::msg::PoseStamped & target) const;
 
   // Simple option to simulate robot movement (default)
   void simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg);
@@ -84,6 +85,11 @@ private:
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
   rclcpp::Time last_update_time_;
 
+  geometry_msgs::msg::PoseStamped start_pose_;
+  geometry_msgs::msg::PoseStamped target_pose_;
+  double gridmap_origin_x_;
+  double gridmap_origin_y_;
+
   double yaw_ = 0.0;
   double robot_x_ = 0.0;
   double robot_y_ = 0.0;
@@ -92,8 +98,7 @@ private:
 
   int num_cells_x_;
   int num_cells_y_;
-  std::pair<int, int> start_position_;
-  std::pair<int, int> goal_position_;
+
   float cell_size_;
   float maze_density_;
   nav_msgs::msg::OccupancyGrid grid_map_;
@@ -105,8 +110,9 @@ private:
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
 };
