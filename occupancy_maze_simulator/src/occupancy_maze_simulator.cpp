@@ -5,6 +5,8 @@
  */
 #include <occupancy_maze_simulator/occupancy_maze_simulator.hpp>
 
+#include <chrono>
+#include <fstream>
 #include <queue>
 #include <random>
 
@@ -20,55 +22,99 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.resolution", 1);
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
-  // TODO(Izumita): #9 start_position, goal_positionはpath_plannerからTopicで受け取るように変更。
-  this->declare_parameter<std::vector<int>>("start_position", {0, 0});
-  this->declare_parameter<std::vector<int>>("goal_position", {48, 48});
-  this->declare_parameter<float>("maze.density", 0.3F);  // 障害物の密度（0.0～1.0）
+  this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
+  this->declare_parameter<int>("max_trial_count", 100);
+  this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
 
   std::string obstacle_mode = this->get_parameter("obstacle_mode").as_string();
   float resolution = this->get_parameter("gridmap.resolution").as_double();
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
-  auto start_vec = this->get_parameter("start_position").as_integer_array();
-  auto goal_vec = this->get_parameter("goal_position").as_integer_array();
   maze_density_ = this->get_parameter("maze.density").as_double();
+  max_trial_count_ = this->get_parameter("max_trial_count").as_int();
+  timeout_ = this->get_parameter("simulation_timeout").as_double();
 
   num_cells_x_ = static_cast<int>(gridmap_x / resolution);
   num_cells_y_ = static_cast<int>(gridmap_y / resolution);
   cell_size_ = resolution;
 
-  if (start_vec.size() == 2) {
-    start_position_ = {start_vec[0], start_vec[1]};
-  } else {
-    RCLCPP_ERROR(
-      this->get_logger(), "Invalid start_position parameter. Expected a list of two integers.");
-    rclcpp::shutdown();
-  }
+  start_pose_.header.frame_id = "odom";
+  start_pose_.pose.position.x = 5.0;
+  start_pose_.pose.position.y = 5.0;
+  start_pose_.pose.position.z = 0.0;
+  start_pose_.pose.orientation.x = 0.0;
+  start_pose_.pose.orientation.y = 0.0;
+  start_pose_.pose.orientation.z = 0.0;
+  start_pose_.pose.orientation.w = 1.0;
 
-  if (goal_vec.size() == 2) {
-    goal_position_ = {goal_vec[0], goal_vec[1]};
-  } else {
-    RCLCPP_ERROR(
-      this->get_logger(), "Invalid goal_position parameter. Expected a list of two integers.");
-    rclcpp::shutdown();
-  }
+  target_pose_.header.frame_id = "odom";
+  target_pose_.pose.position.x = 45.0;
+  target_pose_.pose.position.y = 45.0;
+  target_pose_.pose.position.z = 0.0;
+  target_pose_.pose.orientation.x = 0.0;
+  target_pose_.pose.orientation.y = 0.0;
+  target_pose_.pose.orientation.z = 0.0;
+  target_pose_.pose.orientation.w = 1.0;
+
+  gridmap_origin_x_ = 0.0;
+  gridmap_origin_y_ = 0.0;
+
+  default_color_.r = 1.0;
+  default_color_.g = 1.0;
+  default_color_.b = 1.0;
+  default_color_.a = 1.0;
 
   occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("glim_ros/pose", 10);
-  goal_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("goal_position", 10);
+  start_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("start_pose", 10);
+  target_pose_publisher_ =
+    this->create_publisher<geometry_msgs::msg::PoseStamped>("target_pose", 10);
+  text_marker_publisher_ =
+    this->create_publisher<visualization_msgs::msg::Marker>("text_marker", 10);
 
   twist_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
     "drone1/mavros/setpoint_velocity/cmd_vel_unstamped", 10,
     std::bind(&OccupancyMazeSimulator::twist_callback, this, std::placeholders::_1));
 
   reset_subscriber_ = this->create_subscription<std_msgs::msg::Empty>(
-    "reset", 10, std::bind(&OccupancyMazeSimulator::reset_callback, this, std::placeholders::_1));
+    "reset_from_rviz", 10,
+    std::bind(&OccupancyMazeSimulator::reset_callback, this, std::placeholders::_1));
 
-  publish_pose_timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
+  reset_publisher_ = this->create_publisher<std_msgs::msg::Empty>("reset_from_error_manager", 10);
+
+  failed_subscriber_ = this->create_subscription<std_msgs::msg::String>(
+    "failed", 10, std::bind(&OccupancyMazeSimulator::failed_callback, this, std::placeholders::_1));
+
+  emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
+
+  // 起動時にタイムスタンプを用いてCSVファイルを作成。
+  auto now = std::chrono::system_clock::now();
+  auto in_time_t = std::chrono::system_clock::to_time_t(now);
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
+  std::string timestamp = ss.str();
+
+  csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
+
+  const std::string headers[] = {
+    "Trial Count", "Is Reached To Goal",     "Is Failed",     "Failed Msg",
+    "Travel Time", "Average Travel Time",    "Average Speed", "Max Speed",
+    "Min Speed",   "Min Distance to Object", "Hit Count"};
+
+  std::ofstream csv_file(csv_stat_file_name_);
+  if (!csv_file.is_open()) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to create CSV file: %s", csv_stat_file_name_.c_str());
+    return;
+  }
+  csv_file << headers[0];
+  for (size_t i = 1; i < std::size(headers); ++i) {
+    csv_file << "," << headers[i];
+  }
+  csv_file << "\n";
+  csv_file.close();
 }
 
 void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*msg*/)
@@ -80,7 +126,7 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   do {
     obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
     grid_map_ = create_grid_map(obstacles, {num_cells_x_, num_cells_y_}, cell_size_);
-    path_exists = is_path_to_goal(grid_map_, start_position_, goal_position_);
+    path_exists = is_path_to_target(grid_map_, start_pose_, target_pose_);
     if (!path_exists) {
       RCLCPP_WARN(this->get_logger(), "No path to the goal exists. Regenerating obstacles.");
       ++count;
@@ -102,13 +148,42 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   publish_slam_gridmap_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_slam_gridmap, this));
 
-  yaw_ = 0.0;
-  robot_x_ = static_cast<double>(start_position_.first);
-  robot_y_ = static_cast<double>(start_position_.second);
-  // robot_x_ = start_position_.x();
-  // robot_y_ = start_position_.y();
+  publish_pose_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
+
+  yaw_ = start_pose_.pose.orientation.z;
+  robot_x_ = start_pose_.pose.position.x;
+  robot_y_ = start_pose_.pose.position.y;
+
   current_linear_velocity_ = 0.0;
   current_angular_velocity_ = 0.0;
+
+  travel_speeds_.clear();
+  max_speed_ = 0.0;
+  min_speed_ = std::numeric_limits<double>::max();
+  min_distance_to_object_ = std::numeric_limits<double>::max();
+  hit_count_ = 0;
+  start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+  is_reached_to_target_ = false;
+
+  reset_publisher_->publish(std_msgs::msg::Empty());
+}
+
+void OccupancyMazeSimulator::failed_callback(std_msgs::msg::String::SharedPtr msg)
+{
+  std::string failed_msg = msg->data;
+  RCLCPP_ERROR(this->get_logger(), "Failed: %s", failed_msg.c_str());
+  geometry_msgs::msg::Pose text_display_pose;
+  text_display_pose.position.x = robot_x_;
+  text_display_pose.position.y = robot_y_;
+
+  std_msgs::msg::ColorRGBA text_color;
+  text_color = default_color_;
+  text_color.g = 0.0;
+  text_color.b = 0.0;
+  publish_text_marker("Failed:" + failed_msg, text_display_pose, text_color);
+  record_statistics(failed_msg);
+  reset_callback(std_msgs::msg::Empty::SharedPtr());
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
@@ -119,8 +194,8 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
   grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.info.width = area_size.first;
   grid_msg.info.height = area_size.second;
-  grid_msg.info.origin.position.x = 0.0;
-  grid_msg.info.origin.position.y = 0.0;
+  grid_msg.info.origin.position.x = gridmap_origin_x_;
+  grid_msg.info.origin.position.y = gridmap_origin_y_;
   grid_msg.data.resize(area_size.first * area_size.second, 0);  // 非占有セルは0で初期化
   grid_msg.header.frame_id = "odom";
   grid_msg.header.stamp = this->get_clock()->now();
@@ -155,9 +230,9 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
   return grid_msg;
 }
 
-bool OccupancyMazeSimulator::is_path_to_goal(
-  const nav_msgs::msg::OccupancyGrid & grid_map, const std::pair<int, int> & start,
-  const std::pair<int, int> & goal)
+bool OccupancyMazeSimulator::is_path_to_target(
+  const nav_msgs::msg::OccupancyGrid & grid_map, geometry_msgs::msg::PoseStamped & start,
+  geometry_msgs::msg::PoseStamped & target) const
 {
   const int width = grid_map.info.width;
   const int height = grid_map.info.height;
@@ -166,8 +241,17 @@ bool OccupancyMazeSimulator::is_path_to_goal(
   std::vector<std::vector<bool>> visited(height, std::vector<bool>(width, false));
   std::queue<std::pair<int, int>> queue;
 
-  queue.push(start);
-  visited[start.second][start.first] = true;
+  int start_x =
+    static_cast<int>((start.pose.position.x - gridmap_origin_x_) / grid_map.info.resolution);
+  int start_y =
+    static_cast<int>((start.pose.position.y - gridmap_origin_y_) / grid_map.info.resolution);
+  int target_x =
+    static_cast<int>((target.pose.position.x - gridmap_origin_x_) / grid_map.info.resolution);
+  int target_y =
+    static_cast<int>((target.pose.position.y - gridmap_origin_y_) / grid_map.info.resolution);
+
+  queue.emplace(start_x, start_y);
+  visited[start_y][start_x] = true;
 
   const int dx[] = {1, -1, 0, 0};
   const int dy[] = {0, 0, 1, -1};
@@ -176,7 +260,7 @@ bool OccupancyMazeSimulator::is_path_to_goal(
     auto [x, y] = queue.front();
     queue.pop();
 
-    if (x == goal.first && y == goal.second) {
+    if (x == target_x && y == target_y) {
       return true;
     }
 
@@ -268,16 +352,23 @@ void OccupancyMazeSimulator::publish_pose()
   pose_msg.pose.orientation.z = q.z();
   pose_msg.pose.orientation.w = q.w();
 
+  auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
+  double elapsed_time = (current_time - start_time_).seconds();
+  if (elapsed_time > timeout_) {
+    RCLCPP_INFO(
+      this->get_logger(), "Time exceeded %f seconds. Resetting the simulation.", timeout_);
+    publish_text_marker(
+      "Time exceeded " + std::to_string(timeout_) + " seconds. Resetting the simulation.",
+      target_pose_.pose, default_color_);
+    std::string timeout_msg = "Simulation timeout";
+    record_statistics(timeout_msg);
+    reset_callback(std_msgs::msg::Empty::SharedPtr());
+  }
+
   pose_publisher_->publish(pose_msg);
 
-  geometry_msgs::msg::PoseStamped goal_msg;
-  goal_msg.header.stamp = this->get_clock()->now();
-  goal_msg.header.frame_id = "odom";
-  goal_msg.pose.position.x = goal_position_.first * cell_size_;
-  goal_msg.pose.position.y = goal_position_.second * cell_size_;
-  goal_msg.pose.position.z = 0.0;
-
-  goal_publisher_->publish(goal_msg);
+  start_pose_publisher_->publish(start_pose_);
+  target_pose_publisher_->publish(target_pose_);
 }
 
 void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
@@ -287,6 +378,21 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
     msg->angular.z);
   simulate_robot_position(msg);
   // simulate_drone_movement(msg);
+
+  // Evaluation Robot位置がゴールに十分近いかどうか
+  // 近ければReset
+  if (
+    robot_x_ > target_pose_.pose.position.x - 0.1 &&
+    robot_x_ < target_pose_.pose.position.x + 0.1 &&
+    robot_y_ > target_pose_.pose.position.y - 0.1 &&
+    robot_y_ < target_pose_.pose.position.y + 0.1) {
+    is_reached_to_target_ = true;
+    // Targetの位置にText表示
+    publish_text_marker(
+      "Robot reached the goal. Resetting the simulation.", target_pose_.pose, default_color_);
+    record_statistics();
+    reset_callback(std_msgs::msg::Empty::SharedPtr());
+  }
 }
 
 void OccupancyMazeSimulator::publish_gridmap()
@@ -297,27 +403,41 @@ void OccupancyMazeSimulator::publish_gridmap()
 // Default option for robot position calculation
 void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg)
 {
-  auto wall_clock = rclcpp::Clock(RCL_STEADY_TIME);
-  auto current_time = wall_clock.now();
+  auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
 
   double dt = (current_time - last_update_time_).seconds();
   last_update_time_ = current_time;
 
   // Update position based on both x and y velocities and orientation
-  double delta_x = msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
-  double delta_y = msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
+  double delta_x =
+    msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
+  double delta_y =
+    msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
   double delta_yaw = msg->angular.z * dt;
   // double delta_x = msg->linear.x * dt;
   // double delta_y = msg->linear.y * dt;
   // double delta_yaw = msg->angular.z * dt;
 
-  // Update robot's position and orientation
   robot_x_ += delta_x;
   robot_y_ += delta_y;
   yaw_ += delta_yaw;
 
   if (yaw_ > M_PI) yaw_ -= 2 * M_PI;
   if (yaw_ < -M_PI) yaw_ += 2 * M_PI;
+
+  double speed = std::sqrt(std::pow(msg->linear.x, 2) + std::pow(msg->linear.y, 2));
+  travel_speeds_.push_back(speed);
+  max_speed_ = std::max(max_speed_, speed);
+  min_speed_ = std::min(min_speed_, speed);
+
+  // // 物体との距離を計算し、最小距離を更新
+  // double distance_to_object = calculate_distance_to_object();
+  // min_distance_to_object_ = std::min(min_distance_to_object_, distance_to_object);
+
+  // // 物体とのHit回数を更新
+  // if (distance_to_object < hit_threshold_) {
+  //   hit_count_++;
+  // }
 
   RCLCPP_INFO(
     this->get_logger(), "Updated Robot Position: [x: %f, y: %f, yaw: %f]", robot_x_, robot_y_,
@@ -395,6 +515,68 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
+void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
+{
+  if (record_count_ >= max_trial_count_) {
+    RCLCPP_INFO(
+      this->get_logger(), "Recorded %d trials. Exiting the simulation.", max_trial_count_);
+    emergency_stop_publisher_->publish(std_msgs::msg::Empty());
+    rclcpp::shutdown();
+  }
+  bool is_failed = false;
+  if (failed_msg != "") {
+    is_failed = true;
+  }
+  trial_count_++;
+  double travel_time = (rclcpp::Clock(RCL_STEADY_TIME).now() - start_time_).seconds();
+
+  if (is_reached_to_target_) {
+    RCLCPP_INFO(this->get_logger(), "Reached to the target in %f seconds.", travel_time);
+    travel_times_.push_back(travel_time);
+  }
+
+  double average_speed = 0.0;
+  if (!travel_speeds_.empty()) {
+    average_speed =
+      std::accumulate(travel_speeds_.begin(), travel_speeds_.end(), 0.0) / travel_speeds_.size();
+  }
+  double average_travel_time = NAN;
+  if (!travel_times_.empty()) {
+    average_travel_time =
+      std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
+  }
+  std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
+  csv_file << trial_count_ << "," << is_reached_to_target_ << "," << is_failed << "," << failed_msg
+           << "," << travel_time << "," << average_travel_time << "," << average_speed << ","
+           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "," << hit_count_
+           << "\n";
+  csv_file.close();
+
+  record_count_++;
+}
+
+void OccupancyMazeSimulator::publish_text_marker(
+  std::string visualize_text, geometry_msgs::msg::Pose marker_pose,
+  std_msgs::msg::ColorRGBA text_color)
+{
+  visualization_msgs::msg::Marker marker;
+  marker.header.frame_id = "odom";
+  marker.header.stamp = this->now();
+  marker.ns = "text_marker";
+  marker.id = 999;
+  marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.scale.z = 2.0;
+  marker.pose = marker_pose;
+
+  marker.color = text_color;
+
+  marker.lifetime = rclcpp::Duration::from_seconds(5);
+
+  marker.text = visualize_text;
+
+  text_marker_publisher_->publish(marker);
+}
 // Alt option for robot position simulation Not TESTED, so comment out for now
 // void OccupancyMazeSimulator::simulate_drone_movement(
 //   geometry_msgs::msg::Twist::SharedPtr target_twist)

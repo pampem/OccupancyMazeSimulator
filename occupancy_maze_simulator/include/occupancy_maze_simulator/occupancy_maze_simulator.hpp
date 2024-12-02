@@ -8,17 +8,21 @@
 
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/utilities.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -56,14 +60,14 @@ private:
 
   static Obstacle create_obstacle(double x, double y, double width, double height, double angle);
 
-  static bool is_path_to_goal(
-    const nav_msgs::msg::OccupancyGrid & grid_map, const std::pair<int, int> & start,
-    const std::pair<int, int> & goal);
+  bool is_path_to_target(
+    const nav_msgs::msg::OccupancyGrid & grid_map, geometry_msgs::msg::PoseStamped & start,
+    geometry_msgs::msg::PoseStamped & target) const;
 
   // Simple option to simulate robot movement (default)
   void simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg);
   // Alternative option to simulate robot movement (currently not implemented)
-  void simulate_drone_movement(geometry_msgs::msg::Twist::SharedPtr target_twist);
+  // void simulate_drone_movement(geometry_msgs::msg::Twist::SharedPtr target_twist);
 
   void publish_pose();
 
@@ -75,10 +79,24 @@ private:
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
 
+  std_msgs::msg::ColorRGBA default_color_;
+  void publish_text_marker(
+    std::string visualize_text, geometry_msgs::msg::Pose marker_pose,
+    std_msgs::msg::ColorRGBA text_color);
+
+  void record_statistics(std::string failed_msg = "");
+
+  void failed_callback(std_msgs::msg::String::SharedPtr msg);
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
   rclcpp::Time last_update_time_;
+
+  geometry_msgs::msg::PoseStamped start_pose_;
+  geometry_msgs::msg::PoseStamped target_pose_;
+  double gridmap_origin_x_;
+  double gridmap_origin_y_;
 
   double yaw_ = 0.0;
   double robot_x_ = 0.0;
@@ -88,12 +106,26 @@ private:
 
   int num_cells_x_;
   int num_cells_y_;
-  std::pair<int, int> start_position_;
-  std::pair<int, int> goal_position_;
+
   float cell_size_;
   float maze_density_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
+
+  // 自動評価のための変数
+  std::string csv_stat_file_name_;
+  std::vector<double> travel_times_;
+  std::vector<double> travel_speeds_;
+  double max_speed_ = 0.0;
+  double min_speed_ = std::numeric_limits<double>::max();
+  double min_distance_to_object_ = std::numeric_limits<double>::max();
+  int hit_count_ = 0;
+  int trial_count_ = 0;
+  rclcpp::Time start_time_;
+  bool is_reached_to_target_ = false;
+  int record_count_ = 0;
+  int max_trial_count_;
+  double timeout_;
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -101,9 +133,14 @@ private:
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_publisher_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator
