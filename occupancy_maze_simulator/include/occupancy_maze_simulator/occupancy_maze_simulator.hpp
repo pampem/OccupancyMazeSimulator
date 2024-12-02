@@ -108,6 +108,7 @@ private:
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
 
   // 自動評価のための変数
+  std::string csv_stat_file_name_;
   std::vector<double> travel_times_;
   std::vector<double> travel_speeds_;
   double max_speed_ = 0.0;

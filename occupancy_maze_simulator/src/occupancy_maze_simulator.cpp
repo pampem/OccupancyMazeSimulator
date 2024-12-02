@@ -5,6 +5,7 @@
  */
 #include <occupancy_maze_simulator/occupancy_maze_simulator.hpp>
 
+#include <chrono>
 #include <fstream>
 #include <queue>
 #include <random>
@@ -74,6 +75,20 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
+
+  // 起動時にその時のDateを用いてCSVファイルを作成。
+  auto now = std::chrono::system_clock::now();
+  auto in_time_t = std::chrono::system_clock::to_time_t(now);
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
+  std::string timestamp = ss.str();
+
+  csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
+
+  std::ofstream csv_file(csv_stat_file_name_);
+  csv_file << "Trial Count,Travel Time,Average Travel Time,Average Speed,Max Speed,Min Speed,Min "
+              "Distance to Object,Hit Count\n";
+  csv_file.close();
 }
 
 void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*msg*/)
@@ -465,16 +480,10 @@ void OccupancyMazeSimulator::record_statistics()
   double average_travel_time =
     std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
 
-  std::ofstream csv_file("statistics.csv", std::ios::app);
-  csv_file << "Trial," << trial_count_ << "\n";
-  csv_file << "Is Reached to Target," << is_reached_to_target_ << "\n";
-  csv_file << "Average Travel Time," << average_travel_time << "\n";
-  csv_file << "Travel Time," << travel_time << "\n";
-  csv_file << "Average Speed," << average_speed << "\n";
-  csv_file << "Max Speed," << max_speed_ << "\n";
-  csv_file << "Min Speed," << min_speed_ << "\n";
-  csv_file << "Min Distance to Object," << min_distance_to_object_ << "\n";
-  csv_file << "Hit Count," << hit_count_ << "\n";
+  std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
+  csv_file << trial_count_ << "," << travel_time << "," << average_travel_time << ","
+           << average_speed << "," << max_speed_ << "," << min_speed_ << ","
+           << min_distance_to_object_ << "," << hit_count_ << "\n";
   csv_file.close();
 }
 
