@@ -526,6 +526,12 @@ void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
            << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "," << hit_count_
            << "\n";
   csv_file.close();
+
+  record_count_++;
+  if (record_count_ >= 100) {
+    RCLCPP_INFO(this->get_logger(), "Recorded 100 trials. Exiting the simulation.");
+    rclcpp::shutdown();
+  }
 }
 
 void OccupancyMazeSimulator::publish_text_marker(

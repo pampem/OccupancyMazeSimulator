@@ -122,6 +122,7 @@ private:
   int trial_count_ = 0;
   rclcpp::Time start_time_;
   bool is_reached_to_target_ = false;
+  int record_count_ = 0;
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
