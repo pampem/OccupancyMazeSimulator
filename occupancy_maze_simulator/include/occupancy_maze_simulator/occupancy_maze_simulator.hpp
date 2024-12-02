@@ -8,6 +8,7 @@
 
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/utilities.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -123,6 +124,7 @@ private:
   rclcpp::Time start_time_;
   bool is_reached_to_target_ = false;
   int record_count_ = 0;
+  int max_trial_count_;
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
@@ -134,6 +136,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;

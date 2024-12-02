@@ -23,12 +23,14 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
   this->declare_parameter<float>("maze.density", 0.3F);  // 障害物の密度（0.0～1.0）
+  this->declare_parameter<int>("max_trial_count", 100);
 
   std::string obstacle_mode = this->get_parameter("obstacle_mode").as_string();
   float resolution = this->get_parameter("gridmap.resolution").as_double();
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
   maze_density_ = this->get_parameter("maze.density").as_double();
+  max_trial_count_ = this->get_parameter("max_trial_count").as_int();
 
   num_cells_x_ = static_cast<int>(gridmap_x / resolution);
   num_cells_y_ = static_cast<int>(gridmap_y / resolution);
@@ -82,7 +84,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   failed_subscriber_ = this->create_subscription<std_msgs::msg::String>(
     "failed", 10, std::bind(&OccupancyMazeSimulator::failed_callback, this, std::placeholders::_1));
 
-  reset_callback(std_msgs::msg::Empty::SharedPtr());
+  emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
   // 起動時にタイムスタンプを用いてCSVファイルを作成。
   auto now = std::chrono::system_clock::now();
@@ -93,10 +95,21 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
 
+  const std::string headers[] = {
+    "Trial Count", "Is Reached To Goal",     "Is Failed",     "Failed Msg",
+    "Travel Time", "Average Travel Time",    "Average Speed", "Max Speed",
+    "Min Speed",   "Min Distance to Object", "Hit Count"};
+
   std::ofstream csv_file(csv_stat_file_name_);
-  csv_file << "Trial Count, Is Reached To Goal,Is Failed,Failed Msg,Travel Time,Average Travel "
-              "Time,Average Speed,Max "
-              "Speed,Min Speed,Min Distance to Object,Hit Count\n";
+  if (!csv_file.is_open()) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to create CSV file: %s", csv_stat_file_name_.c_str());
+    return;
+  }
+  csv_file << headers[0];
+  for (size_t i = 1; i < std::size(headers); ++i) {
+    csv_file << "," << headers[i];
+  }
+  csv_file << "\n";
   csv_file.close();
 }
 
@@ -495,9 +508,14 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
-// TODO(izumita): 100回のRecordで終了するようにする。
 void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
 {
+  if (record_count_ >= max_trial_count_) {
+    RCLCPP_INFO(
+      this->get_logger(), "Recorded %d trials. Exiting the simulation.", max_trial_count_);
+    emergency_stop_publisher_->publish(std_msgs::msg::Empty());
+    rclcpp::shutdown();
+  }
   bool is_failed = false;
   if (failed_msg != "") {
     is_failed = true;
@@ -528,10 +546,6 @@ void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
   csv_file.close();
 
   record_count_++;
-  if (record_count_ >= 100) {
-    RCLCPP_INFO(this->get_logger(), "Recorded 100 trials. Exiting the simulation.");
-    rclcpp::shutdown();
-  }
 }
 
 void OccupancyMazeSimulator::publish_text_marker(
