@@ -227,11 +227,11 @@ bool OccupancyMazeSimulator::is_path_to_target(
   int start_x =
     static_cast<int>((start.pose.position.x - gridmap_origin_x_) / grid_map.info.resolution);
   int start_y =
-    static_cast<int>((start.pose.position.y - gridmap_origin_x_) / grid_map.info.resolution);
+    static_cast<int>((start.pose.position.y - gridmap_origin_y_) / grid_map.info.resolution);
   int target_x =
     static_cast<int>((target.pose.position.x - gridmap_origin_x_) / grid_map.info.resolution);
   int target_y =
-    static_cast<int>((target.pose.position.y - gridmap_origin_x_) / grid_map.info.resolution);
+    static_cast<int>((target.pose.position.y - gridmap_origin_y_) / grid_map.info.resolution);
 
   queue.emplace(start_x, start_y);
   visited[start_y][start_x] = true;
@@ -495,6 +495,7 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
+// TODO(izumita): 100回のRecordで終了するようにする。
 void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
 {
   bool is_failed = false;
@@ -509,12 +510,16 @@ void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
     travel_times_.push_back(travel_time);
   }
 
-  double average_speed =
-    std::accumulate(travel_speeds_.begin(), travel_speeds_.end(), 0.0) / travel_speeds_.size();
-
-  double average_travel_time =
-    std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
-
+  double average_speed = 0.0;
+  if (!travel_speeds_.empty()) {
+    average_speed =
+      std::accumulate(travel_speeds_.begin(), travel_speeds_.end(), 0.0) / travel_speeds_.size();
+  }
+  double average_travel_time = NAN;
+  if (!travel_times_.empty()) {
+    average_travel_time =
+      std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
+  }
   std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
   csv_file << trial_count_ << "," << is_reached_to_target_ << "," << is_failed << "," << failed_msg
            << "," << travel_time << "," << average_travel_time << "," << average_speed << ","
