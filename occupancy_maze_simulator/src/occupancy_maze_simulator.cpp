@@ -5,6 +5,7 @@
  */
 #include <occupancy_maze_simulator/occupancy_maze_simulator.hpp>
 
+#include <fstream>
 #include <queue>
 #include <random>
 
@@ -112,6 +113,14 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
 
   current_linear_velocity_ = 0.0;
   current_angular_velocity_ = 0.0;
+
+  travel_speeds_.clear();
+  max_speed_ = 0.0;
+  min_speed_ = std::numeric_limits<double>::max();
+  min_distance_to_object_ = std::numeric_limits<double>::max();
+  hit_count_ = 0;
+  start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+  is_reached_to_target_ = false;
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
@@ -280,6 +289,15 @@ void OccupancyMazeSimulator::publish_pose()
   pose_msg.pose.orientation.z = q.z();
   pose_msg.pose.orientation.w = q.w();
 
+  auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
+  double elapsed_time = (current_time - start_time_).seconds();
+  if (elapsed_time > 100.0) {
+    RCLCPP_INFO(this->get_logger(), "Time exceeded 100 seconds. Resetting the simulation.");
+    publish_text_marker("Time exceeded 100 seconds. Resetting the simulation.", target_pose_.pose);
+    record_statistics();
+    reset_callback(std_msgs::msg::Empty::SharedPtr());
+  }
+
   pose_publisher_->publish(pose_msg);
 
   start_pose_publisher_->publish(start_pose_);
@@ -301,8 +319,10 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
     robot_x_ < target_pose_.pose.position.x + 0.1 &&
     robot_y_ > target_pose_.pose.position.y - 0.1 &&
     robot_y_ < target_pose_.pose.position.y + 0.1) {
-    RCLCPP_INFO(this->get_logger(), "Goal Reached. Resetting the simulation.");
-    publish_text_marker("Robot reached the goal. Resetting the simulation.");
+    is_reached_to_target_ = true;
+    // Targetの位置にText表示
+    publish_text_marker("Robot reached the goal. Resetting the simulation.", target_pose_.pose);
+    record_statistics();
     reset_callback(std_msgs::msg::Empty::SharedPtr());
   }
 }
@@ -315,8 +335,7 @@ void OccupancyMazeSimulator::publish_gridmap()
 // Default option for robot position calculation
 void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg)
 {
-  auto wall_clock = rclcpp::Clock(RCL_STEADY_TIME);
-  auto current_time = wall_clock.now();
+  auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
 
   double dt = (current_time - last_update_time_).seconds();
   last_update_time_ = current_time;
@@ -337,6 +356,20 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
 
   if (yaw_ > M_PI) yaw_ -= 2 * M_PI;
   if (yaw_ < -M_PI) yaw_ += 2 * M_PI;
+
+  double speed = std::sqrt(std::pow(msg->linear.x, 2) + std::pow(msg->linear.y, 2));
+  travel_speeds_.push_back(speed);
+  max_speed_ = std::max(max_speed_, speed);
+  min_speed_ = std::min(min_speed_, speed);
+
+  // // 物体との距離を計算し、最小距離を更新
+  // double distance_to_object = calculate_distance_to_object();
+  // min_distance_to_object_ = std::min(min_distance_to_object_, distance_to_object);
+
+  // // 物体とのHit回数を更新
+  // if (distance_to_object < hit_threshold_) {
+  //   hit_count_++;
+  // }
 
   RCLCPP_INFO(
     this->get_logger(), "Updated Robot Position: [x: %f, y: %f, yaw: %f]", robot_x_, robot_y_,
@@ -414,7 +447,39 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
-void OccupancyMazeSimulator::publish_text_marker(std::string visualize_text)
+void OccupancyMazeSimulator::record_statistics()
+{
+  trial_count_++;
+  double travel_time = (rclcpp::Clock(RCL_STEADY_TIME).now() - start_time_).seconds();
+
+  if (is_reached_to_target_) {
+    RCLCPP_INFO(this->get_logger(), "Reached to the target in %f seconds.", travel_time);
+    travel_times_.push_back(travel_time);
+  } else {
+    RCLCPP_INFO(this->get_logger(), "Couldn't reach to the target in %f seconds.", travel_time);
+  }
+
+  double average_speed =
+    std::accumulate(travel_speeds_.begin(), travel_speeds_.end(), 0.0) / travel_speeds_.size();
+
+  double average_travel_time =
+    std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
+
+  std::ofstream csv_file("statistics.csv", std::ios::app);
+  csv_file << "Trial," << trial_count_ << "\n";
+  csv_file << "Is Reached to Target," << is_reached_to_target_ << "\n";
+  csv_file << "Average Travel Time," << average_travel_time << "\n";
+  csv_file << "Travel Time," << travel_time << "\n";
+  csv_file << "Average Speed," << average_speed << "\n";
+  csv_file << "Max Speed," << max_speed_ << "\n";
+  csv_file << "Min Speed," << min_speed_ << "\n";
+  csv_file << "Min Distance to Object," << min_distance_to_object_ << "\n";
+  csv_file << "Hit Count," << hit_count_ << "\n";
+  csv_file.close();
+}
+
+void OccupancyMazeSimulator::publish_text_marker(
+  std::string visualize_text, geometry_msgs::msg::Pose marker_pose)
 {
   visualization_msgs::msg::Marker marker;
   marker.header.frame_id = "odom";
@@ -424,20 +489,14 @@ void OccupancyMazeSimulator::publish_text_marker(std::string visualize_text)
   marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
   marker.action = visualization_msgs::msg::Marker::ADD;
 
-  marker.pose.position.x = 1.0;
-  marker.pose.position.y = 1.0;
-  marker.pose.position.z = 1.0;
-  marker.pose.orientation.x = 0.0;
-  marker.pose.orientation.y = 0.0;
-  marker.pose.orientation.z = 0.0;
-  marker.pose.orientation.w = 1.0;
+  marker.pose = marker_pose;
 
   marker.scale.z = 2.0;
   marker.color.a = 1.0;
   marker.color.r = 1.0;
   marker.color.g = 1.0;
   marker.color.b = 1.0;
-  marker.lifetime = rclcpp::Duration::from_seconds(1);
+  marker.lifetime = rclcpp::Duration::from_seconds(5);
 
   marker.text = visualize_text;
 

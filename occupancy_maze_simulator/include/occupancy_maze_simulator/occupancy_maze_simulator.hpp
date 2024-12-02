@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <limits>
 
 namespace occupancy_maze_simulator
 {
@@ -78,7 +79,9 @@ private:
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
 
-  void publish_text_marker(std::string visualize_text);
+  void publish_text_marker(std::string visualize_text, geometry_msgs::msg::Pose marker_pose);
+
+  void record_statistics();
 
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
@@ -103,6 +106,17 @@ private:
   float maze_density_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
+
+  // 自動評価のための変数
+  std::vector<double> travel_times_;
+  std::vector<double> travel_speeds_;
+  double max_speed_ = 0.0;
+  double min_speed_ = std::numeric_limits<double>::max();
+  double min_distance_to_object_ = std::numeric_limits<double>::max();
+  int hit_count_ = 0;
+  int trial_count_ = 0;
+  rclcpp::Time start_time_;
+  bool is_reached_to_target_ = false;
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
