@@ -22,8 +22,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.resolution", 1);
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
-  this->declare_parameter<float>("maze.density", 0.3F);  // 障害物の密度（0.0～1.0）
+  this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
+  this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
 
   std::string obstacle_mode = this->get_parameter("obstacle_mode").as_string();
   float resolution = this->get_parameter("gridmap.resolution").as_double();
@@ -31,6 +32,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
   maze_density_ = this->get_parameter("maze.density").as_double();
   max_trial_count_ = this->get_parameter("max_trial_count").as_int();
+  timeout_ = this->get_parameter("simulation_timeout").as_double();
 
   num_cells_x_ = static_cast<int>(gridmap_x / resolution);
   num_cells_y_ = static_cast<int>(gridmap_y / resolution);
@@ -352,11 +354,14 @@ void OccupancyMazeSimulator::publish_pose()
 
   auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
   double elapsed_time = (current_time - start_time_).seconds();
-  if (elapsed_time > 100.0) {
-    RCLCPP_INFO(this->get_logger(), "Time exceeded 100 seconds. Resetting the simulation.");
+  if (elapsed_time > timeout_) {
+    RCLCPP_INFO(
+      this->get_logger(), "Time exceeded %f seconds. Resetting the simulation.", timeout_);
     publish_text_marker(
-      "Time exceeded 100 seconds. Resetting the simulation.", target_pose_.pose, default_color_);
-    record_statistics();
+      "Time exceeded " + std::to_string(timeout_) + " seconds. Resetting the simulation.",
+      target_pose_.pose, default_color_);
+    std::string timeout_msg = "Simulation timeout";
+    record_statistics(timeout_msg);
     reset_callback(std_msgs::msg::Empty::SharedPtr());
   }
 
