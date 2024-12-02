@@ -102,7 +102,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   const std::string headers[] = {
     "Trial Count", "Is Reached To Goal",     "Is Failed",     "Failed Msg",
     "Travel Time", "Average Travel Time",    "Average Speed", "Max Speed",
-    "Min Speed",   "Min Distance to Object", "Hit Count"};
+    "Min Speed",   "Min Distance to Object"};
 
   std::ofstream csv_file(csv_stat_file_name_);
   if (!csv_file.is_open()) {
@@ -162,7 +162,6 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   max_speed_ = 0.0;
   min_speed_ = std::numeric_limits<double>::max();
   min_distance_to_object_ = std::numeric_limits<double>::max();
-  hit_count_ = 0;
   start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
   is_reached_to_target_ = false;
 
@@ -517,9 +516,10 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
 
 void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
 {
+  record_count_++;
   if (record_count_ >= max_trial_count_) {
     RCLCPP_INFO(
-      this->get_logger(), "Recorded %d trials. Exiting the simulation.", max_trial_count_);
+      this->get_logger(), "Recorded %d trials. Exiting the simulation.", record_count_);
     emergency_stop_publisher_->publish(std_msgs::msg::Empty());
     rclcpp::shutdown();
   }
@@ -548,11 +548,8 @@ void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
   std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
   csv_file << trial_count_ << "," << is_reached_to_target_ << "," << is_failed << "," << failed_msg
            << "," << travel_time << "," << average_travel_time << "," << average_speed << ","
-           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "," << hit_count_
-           << "\n";
+           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "\n";
   csv_file.close();
-
-  record_count_++;
 }
 
 void OccupancyMazeSimulator::publish_text_marker(

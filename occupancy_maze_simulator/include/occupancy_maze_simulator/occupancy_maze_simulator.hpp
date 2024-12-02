@@ -119,7 +119,6 @@ private:
   double max_speed_ = 0.0;
   double min_speed_ = std::numeric_limits<double>::max();
   double min_distance_to_object_ = std::numeric_limits<double>::max();
-  int hit_count_ = 0;
   int trial_count_ = 0;
   rclcpp::Time start_time_;
   bool is_reached_to_target_ = false;
