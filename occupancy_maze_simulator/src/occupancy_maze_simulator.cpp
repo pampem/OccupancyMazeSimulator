@@ -86,6 +86,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
+  reset_callback(std_msgs::msg::Empty::SharedPtr());
+
   // 起動時にタイムスタンプを用いてCSVファイルを作成。
   auto now = std::chrono::system_clock::now();
   auto in_time_t = std::chrono::system_clock::to_time_t(now);
