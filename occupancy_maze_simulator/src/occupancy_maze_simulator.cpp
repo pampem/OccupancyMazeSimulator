@@ -76,7 +76,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
 
-  // 起動時にその時のDateを用いてCSVファイルを作成。
+  // 起動時にタイムスタンプを用いてCSVファイルを作成。
   auto now = std::chrono::system_clock::now();
   auto in_time_t = std::chrono::system_clock::to_time_t(now);
   std::stringstream ss;
