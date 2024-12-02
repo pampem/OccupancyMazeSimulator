@@ -29,9 +29,10 @@ void ButtonPanel::onInitialize()
 {
   try {
     node_ = std::make_shared<rclcpp::Node>("button_panel_node");
-    reset_publisher_ = node_->create_publisher<std_msgs::msg::Empty>("reset", 10);
+    reset_publisher_ = node_->create_publisher<std_msgs::msg::Empty>("reset_from_rviz", 10);
   } catch (const rclcpp::exceptions::RCLError & e) {
-    RCLCPP_ERROR(rclcpp::get_logger("button_panel"), "Failed to initialize ROS 2 node: %s", e.what());
+    RCLCPP_ERROR(
+      rclcpp::get_logger("button_panel"), "Failed to initialize ROS 2 node: %s", e.what());
     throw;
   }
 }

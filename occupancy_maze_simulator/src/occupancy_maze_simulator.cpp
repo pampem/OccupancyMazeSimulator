@@ -55,6 +55,11 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   gridmap_origin_x_ = 0.0;
   gridmap_origin_y_ = 0.0;
 
+  default_color_.r = 1.0;
+  default_color_.g = 1.0;
+  default_color_.b = 1.0;
+  default_color_.a = 1.0;
+
   occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("glim_ros/pose", 10);
@@ -69,10 +74,13 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     std::bind(&OccupancyMazeSimulator::twist_callback, this, std::placeholders::_1));
 
   reset_subscriber_ = this->create_subscription<std_msgs::msg::Empty>(
-    "reset", 10, std::bind(&OccupancyMazeSimulator::reset_callback, this, std::placeholders::_1));
+    "reset_from_rviz", 10,
+    std::bind(&OccupancyMazeSimulator::reset_callback, this, std::placeholders::_1));
 
-  publish_pose_timer_ = this->create_wall_timer(
-    std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
+  reset_publisher_ = this->create_publisher<std_msgs::msg::Empty>("reset_from_error_manager", 10);
+
+  failed_subscriber_ = this->create_subscription<std_msgs::msg::String>(
+    "failed", 10, std::bind(&OccupancyMazeSimulator::failed_callback, this, std::placeholders::_1));
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
 
@@ -86,8 +94,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
 
   std::ofstream csv_file(csv_stat_file_name_);
-  csv_file << "Trial Count,Travel Time,Average Travel Time,Average Speed,Max Speed,Min Speed,Min "
-              "Distance to Object,Hit Count\n";
+  csv_file << "Trial Count, Is Reached To Goal,Is Failed,Failed Msg,Travel Time,Average Travel "
+              "Time,Average Speed,Max "
+              "Speed,Min Speed,Min Distance to Object,Hit Count\n";
   csv_file.close();
 }
 
@@ -122,6 +131,9 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   publish_slam_gridmap_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_slam_gridmap, this));
 
+  publish_pose_timer_ = this->create_wall_timer(
+    std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
+
   yaw_ = start_pose_.pose.orientation.z;
   robot_x_ = start_pose_.pose.position.x;
   robot_y_ = start_pose_.pose.position.y;
@@ -136,6 +148,25 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   hit_count_ = 0;
   start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
   is_reached_to_target_ = false;
+
+  reset_publisher_->publish(std_msgs::msg::Empty());
+}
+
+void OccupancyMazeSimulator::failed_callback(std_msgs::msg::String::SharedPtr msg)
+{
+  std::string failed_msg = msg->data;
+  RCLCPP_ERROR(this->get_logger(), "Failed: %s", failed_msg.c_str());
+  geometry_msgs::msg::Pose text_display_pose;
+  text_display_pose.position.x = robot_x_;
+  text_display_pose.position.y = robot_y_;
+
+  std_msgs::msg::ColorRGBA text_color;
+  text_color = default_color_;
+  text_color.g = 0.0;
+  text_color.b = 0.0;
+  publish_text_marker("Failed:" + failed_msg, text_display_pose, text_color);
+  record_statistics(failed_msg);
+  reset_callback(std_msgs::msg::Empty::SharedPtr());
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
@@ -308,7 +339,8 @@ void OccupancyMazeSimulator::publish_pose()
   double elapsed_time = (current_time - start_time_).seconds();
   if (elapsed_time > 100.0) {
     RCLCPP_INFO(this->get_logger(), "Time exceeded 100 seconds. Resetting the simulation.");
-    publish_text_marker("Time exceeded 100 seconds. Resetting the simulation.", target_pose_.pose);
+    publish_text_marker(
+      "Time exceeded 100 seconds. Resetting the simulation.", target_pose_.pose, default_color_);
     record_statistics();
     reset_callback(std_msgs::msg::Empty::SharedPtr());
   }
@@ -336,7 +368,8 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
     robot_y_ < target_pose_.pose.position.y + 0.1) {
     is_reached_to_target_ = true;
     // Targetの位置にText表示
-    publish_text_marker("Robot reached the goal. Resetting the simulation.", target_pose_.pose);
+    publish_text_marker(
+      "Robot reached the goal. Resetting the simulation.", target_pose_.pose, default_color_);
     record_statistics();
     reset_callback(std_msgs::msg::Empty::SharedPtr());
   }
@@ -462,16 +495,18 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
   slam_grid_publisher_->publish(slam_grid_map_);
 }
 
-void OccupancyMazeSimulator::record_statistics()
+void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
 {
+  bool is_failed = false;
+  if (failed_msg != "") {
+    is_failed = true;
+  }
   trial_count_++;
   double travel_time = (rclcpp::Clock(RCL_STEADY_TIME).now() - start_time_).seconds();
 
   if (is_reached_to_target_) {
     RCLCPP_INFO(this->get_logger(), "Reached to the target in %f seconds.", travel_time);
     travel_times_.push_back(travel_time);
-  } else {
-    RCLCPP_INFO(this->get_logger(), "Couldn't reach to the target in %f seconds.", travel_time);
   }
 
   double average_speed =
@@ -481,14 +516,16 @@ void OccupancyMazeSimulator::record_statistics()
     std::accumulate(travel_times_.begin(), travel_times_.end(), 0.0) / travel_times_.size();
 
   std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
-  csv_file << trial_count_ << "," << travel_time << "," << average_travel_time << ","
-           << average_speed << "," << max_speed_ << "," << min_speed_ << ","
-           << min_distance_to_object_ << "," << hit_count_ << "\n";
+  csv_file << trial_count_ << "," << is_reached_to_target_ << "," << is_failed << "," << failed_msg
+           << "," << travel_time << "," << average_travel_time << "," << average_speed << ","
+           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "," << hit_count_
+           << "\n";
   csv_file.close();
 }
 
 void OccupancyMazeSimulator::publish_text_marker(
-  std::string visualize_text, geometry_msgs::msg::Pose marker_pose)
+  std::string visualize_text, geometry_msgs::msg::Pose marker_pose,
+  std_msgs::msg::ColorRGBA text_color)
 {
   visualization_msgs::msg::Marker marker;
   marker.header.frame_id = "odom";
@@ -497,14 +534,11 @@ void OccupancyMazeSimulator::publish_text_marker(
   marker.id = 999;
   marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
   marker.action = visualization_msgs::msg::Marker::ADD;
-
+  marker.scale.z = 2.0;
   marker.pose = marker_pose;
 
-  marker.scale.z = 2.0;
-  marker.color.a = 1.0;
-  marker.color.r = 1.0;
-  marker.color.g = 1.0;
-  marker.color.b = 1.0;
+  marker.color = text_color;
+
   marker.lifetime = rclcpp::Duration::from_seconds(5);
 
   marker.text = visualize_text;

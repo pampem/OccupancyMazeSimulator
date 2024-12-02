@@ -9,22 +9,21 @@
 #include <Eigen/Dense>
 #include <rclcpp/rclcpp.hpp>
 
-#include <geometry_msgs/msg/detail/pose_stamped__struct.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
-#include <limits>
 
 namespace occupancy_maze_simulator
 {
@@ -61,8 +60,8 @@ private:
   static Obstacle create_obstacle(double x, double y, double width, double height, double angle);
 
   bool is_path_to_target(
-  const nav_msgs::msg::OccupancyGrid & grid_map, geometry_msgs::msg::PoseStamped & start,
-  geometry_msgs::msg::PoseStamped & target) const;
+    const nav_msgs::msg::OccupancyGrid & grid_map, geometry_msgs::msg::PoseStamped & start,
+    geometry_msgs::msg::PoseStamped & target) const;
 
   // Simple option to simulate robot movement (default)
   void simulate_robot_position(geometry_msgs::msg::Twist::SharedPtr msg);
@@ -79,9 +78,14 @@ private:
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
 
-  void publish_text_marker(std::string visualize_text, geometry_msgs::msg::Pose marker_pose);
+  std_msgs::msg::ColorRGBA default_color_;
+  void publish_text_marker(
+    std::string visualize_text, geometry_msgs::msg::Pose marker_pose,
+    std_msgs::msg::ColorRGBA text_color);
 
-  void record_statistics();
+  void record_statistics(std::string failed_msg = "");
+
+  void failed_callback(std_msgs::msg::String::SharedPtr msg);
 
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
@@ -128,8 +132,10 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator
