@@ -28,8 +28,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
 
-  // ここの書き方改める
-  // this->get_parameter("repulsive_force.max", repulsive_force_max_);　こんな感じに。
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
@@ -53,8 +51,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   height_ = static_cast<int>(gridmap_y / resolution_);
 
   start_pose_.header.frame_id = "odom";
-  start_pose_.pose.position.x = 5.0;
-  start_pose_.pose.position.y = 5.0;
+  start_pose_.pose.position.x = -20.0;
+  start_pose_.pose.position.y = -20.0;
   start_pose_.pose.position.z = 0.0;
   start_pose_.pose.orientation.x = 0.0;
   start_pose_.pose.orientation.y = 0.0;
@@ -62,16 +60,13 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   start_pose_.pose.orientation.w = 1.0;
 
   target_pose_.header.frame_id = "odom";
-  target_pose_.pose.position.x = 45.0;
-  target_pose_.pose.position.y = 45.0;
+  target_pose_.pose.position.x = -5.0;
+  target_pose_.pose.position.y = -5.0;
   target_pose_.pose.position.z = 0.0;
   target_pose_.pose.orientation.x = 0.0;
   target_pose_.pose.orientation.y = 0.0;
   target_pose_.pose.orientation.z = 0.0;
   target_pose_.pose.orientation.w = 1.0;
-
-  gridmap_origin_x_ = 0.0;
-  gridmap_origin_y_ = 0.0;
 
   default_color_.r = 1.0;
   default_color_.g = 1.0;
@@ -138,9 +133,9 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   int count = 0;
   bool path_exists = false;
   do {
-    if(obstacle_mode_ == "maze") {
+    if (obstacle_mode_ == "maze") {
       obstacles = generate_maze_obstacles();
-    } else if(obstacle_mode_ == "random") {
+    } else if (obstacle_mode_ == "random") {
       obstacles = generate_random_obstacles(10);
     } else {
       RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
@@ -156,12 +151,12 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
       RCLCPP_ERROR(this->get_logger(), "Couldn't create valid obstacles. Check your parameters.");
       return;
     }
-  } while (!path_exists && count < 100);
-  if (count < 100) {
-    RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
-    publish_gridmap_timer_ = this->create_wall_timer(
-      std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
-  }
+  } while (!path_exists);
+
+  RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
+  publish_gridmap_timer_ = this->create_wall_timer(
+    std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+
   last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
 
   slam_grid_map_ = create_empty_grid_map();
@@ -211,17 +206,27 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
 {
   nav_msgs::msg::OccupancyGrid grid_msg;
   grid_msg.info.resolution = resolution_;
-  grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.info.width = width_;
   grid_msg.info.height = height_;
   grid_msg.info.origin.position.x = gridmap_origin_x_;
   grid_msg.info.origin.position.y = gridmap_origin_y_;
-  grid_msg.data.resize(width_ * height_, 0);  // 非占有セルは0で初期化
+  grid_msg.info.origin.position.z = 0.0;
+  grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.header.frame_id = "odom";
   grid_msg.header.stamp = this->get_clock()->now();
+  grid_msg.data.resize(width_ * height_, 0);
+
+  RCLCPP_INFO(this->get_logger(), "origin: (%f, %f)", gridmap_origin_x_, gridmap_origin_y_);
+
+  // for (int y = 0; y < height_; ++y) {
+  //   for (int x = 0; x < width_; ++x) {
+  //     grid_msg.data.push_back(0);
+  //   }
+  // }
 
   // 障害物の配置
   for (const auto & obstacle : obstacles) {
+    // obstacle x,yはgridmapの座標系であって、0~width_, 0~height_の範囲に収まっている。
     int cell_x = static_cast<int>(std::round(obstacle.x / resolution_));
     int cell_y = static_cast<int>(std::round(obstacle.y / resolution_));
     if (cell_x >= 0 && cell_x < width_ && cell_y >= 0 && cell_y < height_) {
@@ -238,14 +243,15 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
 {
   nav_msgs::msg::OccupancyGrid grid_msg;
   grid_msg.info.resolution = resolution_;
-  grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.info.width = width_;
   grid_msg.info.height = height_;
-  grid_msg.info.origin.position.x = 0.0;
-  grid_msg.info.origin.position.y = 0.0;
-  grid_msg.data.resize(width_ * height_, 0);  // 0で初期化
+  grid_msg.info.origin.position.x = gridmap_origin_x_;
+  grid_msg.info.origin.position.y = gridmap_origin_y_;
+  grid_msg.info.origin.position.z = 0.0;
+  grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.header.frame_id = "odom";
   grid_msg.header.stamp = this->get_clock()->now();
+  grid_msg.data.resize(width_ * height_, 0);
 
   return grid_msg;
 }
@@ -448,6 +454,7 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   max_speed_ = std::max(max_speed_, speed);
   min_speed_ = std::min(min_speed_, speed);
 
+  // TODO(Izumita): #15 Implement 最小距離の計算
   // // 物体との距離を計算し、最小距離を更新
   // double distance_to_object = calculate_distance_to_object();
   // min_distance_to_object_ = std::min(min_distance_to_object_, distance_to_object);
