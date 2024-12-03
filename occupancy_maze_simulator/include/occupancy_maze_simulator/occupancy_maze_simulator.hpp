@@ -45,8 +45,7 @@ public:
 
 private:
   nav_msgs::msg::OccupancyGrid create_grid_map(
-    const std::vector<Obstacle> & obstacles, const std::pair<int, int> & area_size,
-    float cell_size);
+    const std::vector<Obstacle> & obstacles, float cell_size);
 
   nav_msgs::msg::OccupancyGrid create_empty_grid_map();
 
@@ -95,8 +94,6 @@ private:
 
   geometry_msgs::msg::PoseStamped start_pose_;
   geometry_msgs::msg::PoseStamped target_pose_;
-  double gridmap_origin_x_;
-  double gridmap_origin_y_;
 
   double yaw_ = 0.0;
   double robot_x_ = 0.0;
@@ -104,10 +101,13 @@ private:
   double current_linear_velocity_ = 0.0;
   double current_angular_velocity_ = 0.0;
 
-  int num_cells_x_;
-  int num_cells_y_;
+  int width_;
+  int height_;
 
-  float cell_size_;
+  float resolution_;
+
+  double gridmap_origin_x_;
+  double gridmap_origin_y_;
   float maze_density_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
