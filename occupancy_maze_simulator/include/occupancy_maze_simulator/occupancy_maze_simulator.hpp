@@ -23,7 +23,6 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace occupancy_maze_simulator
@@ -44,18 +43,15 @@ public:
   explicit OccupancyMazeSimulator(const rclcpp::NodeOptions & options);
 
 private:
-  nav_msgs::msg::OccupancyGrid create_grid_map(
-    const std::vector<Obstacle> & obstacles, float cell_size);
+  nav_msgs::msg::OccupancyGrid create_grid_map(const std::vector<Obstacle> & obstacles);
 
   nav_msgs::msg::OccupancyGrid create_empty_grid_map();
 
   void twist_callback(geometry_msgs::msg::Twist::SharedPtr msg);
 
-  static std::vector<Obstacle> generate_random_obstacles(
-    int num_obstacles, const std::pair<int, int> & area_size);
+  std::vector<Obstacle> generate_random_obstacles(int num_obstacles) const;
 
-  std::vector<Obstacle> generate_maze_obstacles(
-    float cell_size, const std::pair<int, int> & area_size) const;
+  std::vector<Obstacle> generate_maze_obstacles() const;
 
   static Obstacle create_obstacle(double x, double y, double width, double height, double angle);
 
@@ -109,6 +105,7 @@ private:
   double gridmap_origin_x_;
   double gridmap_origin_y_;
   float maze_density_;
+  std::string obstacle_mode_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
 

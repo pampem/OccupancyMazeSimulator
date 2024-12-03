@@ -30,7 +30,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   // ここの書き方改める
   // this->get_parameter("repulsive_force.max", repulsive_force_max_);　こんな感じに。
-  std::string obstacle_mode = this->get_parameter("obstacle_mode").as_string();
+  this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
@@ -41,14 +41,12 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("gridmap.origin_y", gridmap_origin_y_);
 
   // 得たParmsを表示
-  // originも表示
-
   RCLCPP_INFO(
     this->get_logger(),
     "Obstacle Mode: %s, Gridmap Resolution: %f, Gridmap Size: %f x %f, "
     "Gridmap Origin: %f, %f, "
     "Maze Density: %f, Max Trial Count: %d, Simulation Timeout: %f",
-    obstacle_mode.c_str(), resolution_, gridmap_x, gridmap_y, gridmap_origin_x_, gridmap_origin_y_,
+    obstacle_mode_.c_str(), resolution_, gridmap_x, gridmap_y, gridmap_origin_x_, gridmap_origin_y_,
     maze_density_, max_trial_count_, timeout_);
 
   width_ = static_cast<int>(gridmap_x / resolution_);
@@ -140,8 +138,15 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   int count = 0;
   bool path_exists = false;
   do {
-    obstacles = generate_maze_obstacles(resolution_, {width_, height_});
-    grid_map_ = create_grid_map(obstacles, resolution_);
+    if(obstacle_mode_ == "maze") {
+      obstacles = generate_maze_obstacles();
+    } else if(obstacle_mode_ == "random") {
+      obstacles = generate_random_obstacles(10);
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
+      return;
+    }
+    grid_map_ = create_grid_map(obstacles);
     path_exists = is_path_to_target(grid_map_, start_pose_, target_pose_);
     if (!path_exists) {
       RCLCPP_WARN(this->get_logger(), "No path to the goal exists. Regenerating obstacles.");
@@ -202,10 +207,10 @@ void OccupancyMazeSimulator::failed_callback(std_msgs::msg::String::SharedPtr ms
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
-  const std::vector<Obstacle> & obstacles, float cell_size)
+  const std::vector<Obstacle> & obstacles)
 {
   nav_msgs::msg::OccupancyGrid grid_msg;
-  grid_msg.info.resolution = cell_size;
+  grid_msg.info.resolution = resolution_;
   grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.info.width = width_;
   grid_msg.info.height = height_;
@@ -217,8 +222,8 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
 
   // 障害物の配置
   for (const auto & obstacle : obstacles) {
-    int cell_x = static_cast<int>(std::round(obstacle.x / cell_size));
-    int cell_y = static_cast<int>(std::round(obstacle.y / cell_size));
+    int cell_x = static_cast<int>(std::round(obstacle.x / resolution_));
+    int cell_y = static_cast<int>(std::round(obstacle.y / resolution_));
     if (cell_x >= 0 && cell_x < width_ && cell_y >= 0 && cell_y < height_) {
       int index = cell_y * width_ + cell_x;
       grid_msg.data[index] = 100;  // 障害物セルを設定
@@ -300,14 +305,13 @@ Obstacle OccupancyMazeSimulator::create_obstacle(
   return Obstacle{x, y, width, height, angle};
 }
 
-std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(
-  int num_obstacles, const std::pair<int, int> & area_size)
+std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(int num_obstacles) const
 {
   std::vector<Obstacle> obstacles;
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dist_x(6, area_size.first - 6);
-  std::uniform_real_distribution<> dist_y(6, area_size.second - 6);
+  std::uniform_real_distribution<> dist_x(6, width_ - 6);
+  std::uniform_real_distribution<> dist_y(6, height_ - 6);
   std::uniform_real_distribution<> dist_width(5, 10);
   std::uniform_real_distribution<> dist_height(5, 10);
   std::uniform_real_distribution<> dist_angle(0, 180);
@@ -320,12 +324,11 @@ std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(
   return obstacles;
 }
 
-std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles(
-  float cell_size, const std::pair<int, int> & area_size) const
+std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles() const
 {
   std::vector<Obstacle> obstacles;
-  int num_cells_x = area_size.first;
-  int num_cells_y = area_size.second;
+  int num_cells_x = width_;
+  int num_cells_y = height_;
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -334,16 +337,16 @@ std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles(
   for (int i = 0; i < num_cells_x; ++i) {
     for (int j = 0; j < num_cells_y; ++j) {
       if (
-        (i * cell_size <= 10 && j * cell_size <= 10) ||
-        (area_size.first - 10 <= i * cell_size && area_size.second - 10 <= j * cell_size)) {
+        (i * resolution_ <= 10 && j * resolution_ <= 10) ||
+        (width_ - 10 <= i * resolution_ && height_ - 10 <= j * resolution_)) {
         continue;
       }
 
       if (dist(gen) < maze_density_) {  // `maze_density`の確率で障害物を配置
-        double x = i * cell_size + static_cast<double>(cell_size) / 2.0;
-        double y = j * cell_size + static_cast<double>(cell_size) / 2.0;
-        double width = (dist(gen) > 0.5) ? cell_size : cell_size + 2;
-        double height = (width == cell_size) ? cell_size + 2 : cell_size;
+        double x = i * resolution_ + static_cast<double>(resolution_) / 2.0;
+        double y = j * resolution_ + static_cast<double>(resolution_) / 2.0;
+        double width = (dist(gen) > 0.5) ? resolution_ : resolution_ + 2;
+        double height = (width == resolution_) ? resolution_ + 2 : resolution_;
         obstacles.push_back(create_obstacle(x, y, width, height, 0));
       }
     }
@@ -471,10 +474,10 @@ void OccupancyMazeSimulator::simulate_lidar_scan()
     double end_y = robot_y_ + max_lidar_range * std::sin(angle);
 
     // グリッド座標に変換
-    int start_cell_x = static_cast<int>(std::round(robot_x_ / resolution_));
-    int start_cell_y = static_cast<int>(std::round(robot_y_ / resolution_));
-    int end_cell_x = static_cast<int>(std::round(end_x / resolution_));
-    int end_cell_y = static_cast<int>(std::round(end_y / resolution_));
+    int start_cell_x = static_cast<int>(std::round((robot_x_ - gridmap_origin_x_) / resolution_));
+    int start_cell_y = static_cast<int>(std::round((robot_y_ - gridmap_origin_y_) / resolution_));
+    int end_cell_x = static_cast<int>(std::round((end_x - gridmap_origin_x_) / resolution_));
+    int end_cell_y = static_cast<int>(std::round((end_y - gridmap_origin_y_) / resolution_));
 
     // Bresenhamのアルゴリズムを適用
     int dx = std::abs(end_cell_x - start_cell_x);
