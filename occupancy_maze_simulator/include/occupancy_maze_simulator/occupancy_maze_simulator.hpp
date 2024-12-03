@@ -23,7 +23,6 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace occupancy_maze_simulator
@@ -44,19 +43,15 @@ public:
   explicit OccupancyMazeSimulator(const rclcpp::NodeOptions & options);
 
 private:
-  nav_msgs::msg::OccupancyGrid create_grid_map(
-    const std::vector<Obstacle> & obstacles, const std::pair<int, int> & area_size,
-    float cell_size);
+  nav_msgs::msg::OccupancyGrid create_grid_map(const std::vector<Obstacle> & obstacles);
 
   nav_msgs::msg::OccupancyGrid create_empty_grid_map();
 
   void twist_callback(geometry_msgs::msg::Twist::SharedPtr msg);
 
-  static std::vector<Obstacle> generate_random_obstacles(
-    int num_obstacles, const std::pair<int, int> & area_size);
+  std::vector<Obstacle> generate_random_obstacles(int num_obstacles) const;
 
-  std::vector<Obstacle> generate_maze_obstacles(
-    float cell_size, const std::pair<int, int> & area_size) const;
+  std::vector<Obstacle> generate_maze_obstacles() const;
 
   static Obstacle create_obstacle(double x, double y, double width, double height, double angle);
 
@@ -95,8 +90,6 @@ private:
 
   geometry_msgs::msg::PoseStamped start_pose_;
   geometry_msgs::msg::PoseStamped target_pose_;
-  double gridmap_origin_x_;
-  double gridmap_origin_y_;
 
   double yaw_ = 0.0;
   double robot_x_ = 0.0;
@@ -104,11 +97,15 @@ private:
   double current_linear_velocity_ = 0.0;
   double current_angular_velocity_ = 0.0;
 
-  int num_cells_x_;
-  int num_cells_y_;
+  int width_;
+  int height_;
 
-  float cell_size_;
+  float resolution_;
+
+  double gridmap_origin_x_;
+  double gridmap_origin_y_;
   float maze_density_;
+  std::string obstacle_mode_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
 
@@ -119,7 +116,6 @@ private:
   double max_speed_ = 0.0;
   double min_speed_ = std::numeric_limits<double>::max();
   double min_distance_to_object_ = std::numeric_limits<double>::max();
-  int hit_count_ = 0;
   int trial_count_ = 0;
   rclcpp::Time start_time_;
   bool is_reached_to_target_ = false;

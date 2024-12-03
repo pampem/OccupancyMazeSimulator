@@ -22,25 +22,43 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.resolution", 1);
   this->declare_parameter<float>("gridmap.x", 50);
   this->declare_parameter<float>("gridmap.y", 50);
+  this->declare_parameter<float>("gridmap.origin_x", 0.0);
+  this->declare_parameter<float>("gridmap.origin_y", 0.0);
+  this->declare_parameter<float>("start_pose.x", -20.0);
+  this->declare_parameter<float>("start_pose.y", -20.0);
+  this->declare_parameter<float>("target_pose.x", 20.0);
+  this->declare_parameter<float>("target_pose.y", 20.0);
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
 
-  std::string obstacle_mode = this->get_parameter("obstacle_mode").as_string();
-  float resolution = this->get_parameter("gridmap.resolution").as_double();
+  this->get_parameter("obstacle_mode", obstacle_mode_);
+  this->get_parameter("gridmap.resolution", resolution_);
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
-  maze_density_ = this->get_parameter("maze.density").as_double();
-  max_trial_count_ = this->get_parameter("max_trial_count").as_int();
-  timeout_ = this->get_parameter("simulation_timeout").as_double();
+  this->get_parameter("gridmap.origin_x", gridmap_origin_x_);
+  this->get_parameter("gridmap.origin_y", gridmap_origin_y_);
+  this->get_parameter("start_pose.x", start_pose_.pose.position.x);
+  this->get_parameter("start_pose.y", start_pose_.pose.position.y);
+  this->get_parameter("target_pose.x", target_pose_.pose.position.x);
+  this->get_parameter("target_pose.y", target_pose_.pose.position.y);
+  this->get_parameter("maze.density", maze_density_);
+  this->get_parameter("max_trial_count", max_trial_count_);
+  this->get_parameter("simulation_timeout", timeout_);
 
-  num_cells_x_ = static_cast<int>(gridmap_x / resolution);
-  num_cells_y_ = static_cast<int>(gridmap_y / resolution);
-  cell_size_ = resolution;
+  // 得たParmsを表示
+  RCLCPP_INFO(
+    this->get_logger(),
+    "Obstacle Mode: %s, Gridmap Resolution: %f, Gridmap Size: %f x %f, "
+    "Gridmap Origin: %f, %f, "
+    "Maze Density: %f, Max Trial Count: %d, Simulation Timeout: %f",
+    obstacle_mode_.c_str(), resolution_, gridmap_x, gridmap_y, gridmap_origin_x_, gridmap_origin_y_,
+    maze_density_, max_trial_count_, timeout_);
+
+  width_ = static_cast<int>(gridmap_x / resolution_);
+  height_ = static_cast<int>(gridmap_y / resolution_);
 
   start_pose_.header.frame_id = "odom";
-  start_pose_.pose.position.x = 5.0;
-  start_pose_.pose.position.y = 5.0;
   start_pose_.pose.position.z = 0.0;
   start_pose_.pose.orientation.x = 0.0;
   start_pose_.pose.orientation.y = 0.0;
@@ -48,16 +66,11 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   start_pose_.pose.orientation.w = 1.0;
 
   target_pose_.header.frame_id = "odom";
-  target_pose_.pose.position.x = 45.0;
-  target_pose_.pose.position.y = 45.0;
   target_pose_.pose.position.z = 0.0;
   target_pose_.pose.orientation.x = 0.0;
   target_pose_.pose.orientation.y = 0.0;
   target_pose_.pose.orientation.z = 0.0;
   target_pose_.pose.orientation.w = 1.0;
-
-  gridmap_origin_x_ = 0.0;
-  gridmap_origin_y_ = 0.0;
 
   default_color_.r = 1.0;
   default_color_.g = 1.0;
@@ -100,9 +113,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
 
   const std::string headers[] = {
-    "Trial Count", "Is Reached To Goal",     "Is Failed",     "Failed Msg",
-    "Travel Time", "Average Travel Time",    "Average Speed", "Max Speed",
-    "Min Speed",   "Min Distance to Object", "Hit Count"};
+    "Trial Count", "Is Reached To Goal",    "Is Failed",     "Failed Msg",
+    "Travel Time", "Average Travel Time",   "Average Speed", "Max Speed",
+    "Min Speed",   "Min Distance to Object"};
 
   std::ofstream csv_file(csv_stat_file_name_);
   if (!csv_file.is_open()) {
@@ -124,8 +137,15 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   int count = 0;
   bool path_exists = false;
   do {
-    obstacles = generate_maze_obstacles(cell_size_, {num_cells_x_, num_cells_y_});
-    grid_map_ = create_grid_map(obstacles, {num_cells_x_, num_cells_y_}, cell_size_);
+    if (obstacle_mode_ == "maze") {
+      obstacles = generate_maze_obstacles();
+    } else if (obstacle_mode_ == "random") {
+      obstacles = generate_random_obstacles(10);
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
+      return;
+    }
+    grid_map_ = create_grid_map(obstacles);
     path_exists = is_path_to_target(grid_map_, start_pose_, target_pose_);
     if (!path_exists) {
       RCLCPP_WARN(this->get_logger(), "No path to the goal exists. Regenerating obstacles.");
@@ -135,12 +155,12 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
       RCLCPP_ERROR(this->get_logger(), "Couldn't create valid obstacles. Check your parameters.");
       return;
     }
-  } while (!path_exists && count < 100);
-  if (count < 100) {
-    RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
-    publish_gridmap_timer_ = this->create_wall_timer(
-      std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
-  }
+  } while (!path_exists);
+
+  RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
+  publish_gridmap_timer_ = this->create_wall_timer(
+    std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+
   last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
 
   slam_grid_map_ = create_empty_grid_map();
@@ -162,7 +182,6 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   max_speed_ = 0.0;
   min_speed_ = std::numeric_limits<double>::max();
   min_distance_to_object_ = std::numeric_limits<double>::max();
-  hit_count_ = 0;
   start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
   is_reached_to_target_ = false;
 
@@ -187,25 +206,35 @@ void OccupancyMazeSimulator::failed_callback(std_msgs::msg::String::SharedPtr ms
 }
 
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
-  const std::vector<Obstacle> & obstacles, const std::pair<int, int> & area_size, float cell_size)
+  const std::vector<Obstacle> & obstacles)
 {
   nav_msgs::msg::OccupancyGrid grid_msg;
-  grid_msg.info.resolution = cell_size;
-  grid_msg.info.origin.orientation.w = 1.0;
-  grid_msg.info.width = area_size.first;
-  grid_msg.info.height = area_size.second;
+  grid_msg.info.resolution = resolution_;
+  grid_msg.info.width = width_;
+  grid_msg.info.height = height_;
   grid_msg.info.origin.position.x = gridmap_origin_x_;
   grid_msg.info.origin.position.y = gridmap_origin_y_;
-  grid_msg.data.resize(area_size.first * area_size.second, 0);  // 非占有セルは0で初期化
+  grid_msg.info.origin.position.z = 0.0;
+  grid_msg.info.origin.orientation.w = 1.0;
   grid_msg.header.frame_id = "odom";
   grid_msg.header.stamp = this->get_clock()->now();
+  grid_msg.data.resize(width_ * height_, 0);
+
+  RCLCPP_INFO(this->get_logger(), "origin: (%f, %f)", gridmap_origin_x_, gridmap_origin_y_);
+
+  // for (int y = 0; y < height_; ++y) {
+  //   for (int x = 0; x < width_; ++x) {
+  //     grid_msg.data.push_back(0);
+  //   }
+  // }
 
   // 障害物の配置
   for (const auto & obstacle : obstacles) {
-    int cell_x = static_cast<int>(std::round(obstacle.x / cell_size));
-    int cell_y = static_cast<int>(std::round(obstacle.y / cell_size));
-    if (cell_x >= 0 && cell_x < area_size.first && cell_y >= 0 && cell_y < area_size.second) {
-      int index = cell_y * area_size.first + cell_x;
+    // obstacle x,yはgridmapの座標系であって、0~width_, 0~height_の範囲に収まっている。
+    int cell_x = static_cast<int>(std::round(obstacle.x / resolution_));
+    int cell_y = static_cast<int>(std::round(obstacle.y / resolution_));
+    if (cell_x >= 0 && cell_x < width_ && cell_y >= 0 && cell_y < height_) {
+      int index = cell_y * width_ + cell_x;
       grid_msg.data[index] = 100;  // 障害物セルを設定
     } else {
       RCLCPP_WARN(this->get_logger(), "Obstacle out of grid bounds at (%d, %d)", cell_x, cell_y);
@@ -217,15 +246,16 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
 nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
 {
   nav_msgs::msg::OccupancyGrid grid_msg;
-  grid_msg.info.resolution = cell_size_;
+  grid_msg.info.resolution = resolution_;
+  grid_msg.info.width = width_;
+  grid_msg.info.height = height_;
+  grid_msg.info.origin.position.x = gridmap_origin_x_;
+  grid_msg.info.origin.position.y = gridmap_origin_y_;
+  grid_msg.info.origin.position.z = 0.0;
   grid_msg.info.origin.orientation.w = 1.0;
-  grid_msg.info.width = num_cells_x_;
-  grid_msg.info.height = num_cells_y_;
-  grid_msg.info.origin.position.x = 0.0;
-  grid_msg.info.origin.position.y = 0.0;
-  grid_msg.data.resize(num_cells_x_ * num_cells_y_, 0);  // 0で初期化
   grid_msg.header.frame_id = "odom";
   grid_msg.header.stamp = this->get_clock()->now();
+  grid_msg.data.resize(width_ * height_, 0);
 
   return grid_msg;
 }
@@ -285,14 +315,13 @@ Obstacle OccupancyMazeSimulator::create_obstacle(
   return Obstacle{x, y, width, height, angle};
 }
 
-std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(
-  int num_obstacles, const std::pair<int, int> & area_size)
+std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(int num_obstacles) const
 {
   std::vector<Obstacle> obstacles;
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dist_x(6, area_size.first - 6);
-  std::uniform_real_distribution<> dist_y(6, area_size.second - 6);
+  std::uniform_real_distribution<> dist_x(6, width_ - 6);
+  std::uniform_real_distribution<> dist_y(6, height_ - 6);
   std::uniform_real_distribution<> dist_width(5, 10);
   std::uniform_real_distribution<> dist_height(5, 10);
   std::uniform_real_distribution<> dist_angle(0, 180);
@@ -305,12 +334,11 @@ std::vector<Obstacle> OccupancyMazeSimulator::generate_random_obstacles(
   return obstacles;
 }
 
-std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles(
-  float cell_size, const std::pair<int, int> & area_size) const
+std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles() const
 {
   std::vector<Obstacle> obstacles;
-  int num_cells_x = area_size.first;
-  int num_cells_y = area_size.second;
+  int num_cells_x = width_;
+  int num_cells_y = height_;
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -319,16 +347,16 @@ std::vector<Obstacle> OccupancyMazeSimulator::generate_maze_obstacles(
   for (int i = 0; i < num_cells_x; ++i) {
     for (int j = 0; j < num_cells_y; ++j) {
       if (
-        (i * cell_size <= 10 && j * cell_size <= 10) ||
-        (area_size.first - 10 <= i * cell_size && area_size.second - 10 <= j * cell_size)) {
+        (i * resolution_ <= 10 && j * resolution_ <= 10) ||
+        (width_ - 10 <= i * resolution_ && height_ - 10 <= j * resolution_)) {
         continue;
       }
 
       if (dist(gen) < maze_density_) {  // `maze_density`の確率で障害物を配置
-        double x = i * cell_size + static_cast<double>(cell_size) / 2.0;
-        double y = j * cell_size + static_cast<double>(cell_size) / 2.0;
-        double width = (dist(gen) > 0.5) ? cell_size : cell_size + 2;
-        double height = (width == cell_size) ? cell_size + 2 : cell_size;
+        double x = i * resolution_ + static_cast<double>(resolution_) / 2.0;
+        double y = j * resolution_ + static_cast<double>(resolution_) / 2.0;
+        double width = (dist(gen) > 0.5) ? resolution_ : resolution_ + 2;
+        double height = (width == resolution_) ? resolution_ + 2 : resolution_;
         obstacles.push_back(create_obstacle(x, y, width, height, 0));
       }
     }
@@ -430,6 +458,7 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   max_speed_ = std::max(max_speed_, speed);
   min_speed_ = std::min(min_speed_, speed);
 
+  // TODO(Izumita): #15 Implement 最小距離の計算
   // // 物体との距離を計算し、最小距離を更新
   // double distance_to_object = calculate_distance_to_object();
   // min_distance_to_object_ = std::min(min_distance_to_object_, distance_to_object);
@@ -456,10 +485,10 @@ void OccupancyMazeSimulator::simulate_lidar_scan()
     double end_y = robot_y_ + max_lidar_range * std::sin(angle);
 
     // グリッド座標に変換
-    int start_cell_x = static_cast<int>(std::round(robot_x_ / cell_size_));
-    int start_cell_y = static_cast<int>(std::round(robot_y_ / cell_size_));
-    int end_cell_x = static_cast<int>(std::round(end_x / cell_size_));
-    int end_cell_y = static_cast<int>(std::round(end_y / cell_size_));
+    int start_cell_x = static_cast<int>(std::round((robot_x_ - gridmap_origin_x_) / resolution_));
+    int start_cell_y = static_cast<int>(std::round((robot_y_ - gridmap_origin_y_) / resolution_));
+    int end_cell_x = static_cast<int>(std::round((end_x - gridmap_origin_x_) / resolution_));
+    int end_cell_y = static_cast<int>(std::round((end_y - gridmap_origin_y_) / resolution_));
 
     // Bresenhamのアルゴリズムを適用
     int dx = std::abs(end_cell_x - start_cell_x);
@@ -473,12 +502,11 @@ void OccupancyMazeSimulator::simulate_lidar_scan()
 
     while (true) {
       // 範囲外チェック
-      if (
-        current_x < 0 || current_x >= num_cells_x_ || current_y < 0 || current_y >= num_cells_y_) {
+      if (current_x < 0 || current_x >= width_ || current_y < 0 || current_y >= height_) {
         break;
       }
 
-      int index = current_y * num_cells_x_ + current_x;
+      int index = current_y * width_ + current_x;
 
       // 障害物セルに到達した場合、SLAMマップを更新して終了
       if (grid_map_.data[index] == 100) {
@@ -517,9 +545,9 @@ void OccupancyMazeSimulator::publish_slam_gridmap()
 
 void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
 {
+  record_count_++;
   if (record_count_ >= max_trial_count_) {
-    RCLCPP_INFO(
-      this->get_logger(), "Recorded %d trials. Exiting the simulation.", max_trial_count_);
+    RCLCPP_INFO(this->get_logger(), "Recorded %d trials. Exiting the simulation.", record_count_);
     emergency_stop_publisher_->publish(std_msgs::msg::Empty());
     rclcpp::shutdown();
   }
@@ -548,11 +576,8 @@ void OccupancyMazeSimulator::record_statistics(std::string failed_msg)
   std::ofstream csv_file(csv_stat_file_name_, std::ios::app);
   csv_file << trial_count_ << "," << is_reached_to_target_ << "," << is_failed << "," << failed_msg
            << "," << travel_time << "," << average_travel_time << "," << average_speed << ","
-           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "," << hit_count_
-           << "\n";
+           << max_speed_ << "," << min_speed_ << "," << min_distance_to_object_ << "\n";
   csv_file.close();
-
-  record_count_++;
 }
 
 void OccupancyMazeSimulator::publish_text_marker(
