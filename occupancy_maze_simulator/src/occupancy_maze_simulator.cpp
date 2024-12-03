@@ -24,6 +24,10 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.y", 50);
   this->declare_parameter<float>("gridmap.origin_x", 0.0);
   this->declare_parameter<float>("gridmap.origin_y", 0.0);
+  this->declare_parameter<float>("start_pose.x", -20.0);
+  this->declare_parameter<float>("start_pose.y", -20.0);
+  this->declare_parameter<float>("target_pose.x", 20.0);
+  this->declare_parameter<float>("target_pose.y", 20.0);
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
@@ -32,11 +36,15 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("gridmap.resolution", resolution_);
   float gridmap_x = this->get_parameter("gridmap.x").as_double();
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
+  this->get_parameter("gridmap.origin_x", gridmap_origin_x_);
+  this->get_parameter("gridmap.origin_y", gridmap_origin_y_);
+  this->get_parameter("start_pose.x", start_pose_.pose.position.x);
+  this->get_parameter("start_pose.y", start_pose_.pose.position.y);
+  this->get_parameter("target_pose.x", target_pose_.pose.position.x);
+  this->get_parameter("target_pose.y", target_pose_.pose.position.y);
   this->get_parameter("maze.density", maze_density_);
   this->get_parameter("max_trial_count", max_trial_count_);
   this->get_parameter("simulation_timeout", timeout_);
-  this->get_parameter("gridmap.origin_x", gridmap_origin_x_);
-  this->get_parameter("gridmap.origin_y", gridmap_origin_y_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -51,8 +59,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   height_ = static_cast<int>(gridmap_y / resolution_);
 
   start_pose_.header.frame_id = "odom";
-  start_pose_.pose.position.x = -20.0;
-  start_pose_.pose.position.y = -20.0;
   start_pose_.pose.position.z = 0.0;
   start_pose_.pose.orientation.x = 0.0;
   start_pose_.pose.orientation.y = 0.0;
@@ -60,8 +66,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   start_pose_.pose.orientation.w = 1.0;
 
   target_pose_.header.frame_id = "odom";
-  target_pose_.pose.position.x = -5.0;
-  target_pose_.pose.position.y = -5.0;
   target_pose_.pose.position.z = 0.0;
   target_pose_.pose.orientation.x = 0.0;
   target_pose_.pose.orientation.y = 0.0;
