@@ -53,8 +53,13 @@ install(
   RUNTIME DESTINATION bin)
 
 install(
-  DIRECTORY include/
-  DESTINATION include/${PROJECT_NAME}
+  DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+install(
+  DIRECTORY rviz/
+  DESTINATION share/${PROJECT_NAME}/rviz
 )
 
 if(BUILD_TESTING)

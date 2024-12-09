@@ -108,6 +108,7 @@ private:
   std::string obstacle_mode_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
+  std::string robot_pose_topic_;
 
   // 自動評価のための変数
   std::string csv_stat_file_name_;

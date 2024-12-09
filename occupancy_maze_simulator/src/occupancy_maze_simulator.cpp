@@ -24,13 +24,14 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.y", 50);
   this->declare_parameter<float>("gridmap.origin_x", 0.0);
   this->declare_parameter<float>("gridmap.origin_y", 0.0);
-  this->declare_parameter<float>("start_pose.x", -20.0);
-  this->declare_parameter<float>("start_pose.y", -20.0);
-  this->declare_parameter<float>("target_pose.x", 20.0);
-  this->declare_parameter<float>("target_pose.y", 20.0);
+  this->declare_parameter<float>("start_pose.x", 5.0);
+  this->declare_parameter<float>("start_pose.y", 5.0);
+  this->declare_parameter<float>("target_pose.x", 45.0);
+  this->declare_parameter<float>("target_pose.y", 45.0);
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
+  this->declare_parameter<std::string>("robot_pose_topic", "drone1/mavros/vision_pose/pose");
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -45,6 +46,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("maze.density", maze_density_);
   this->get_parameter("max_trial_count", max_trial_count_);
   this->get_parameter("simulation_timeout", timeout_);
+  this->get_parameter("robot_pose_topic", robot_pose_topic_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -79,7 +81,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
-  pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("glim_ros/pose", 10);
+  pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(robot_pose_topic_, 10);
   start_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("start_pose", 10);
   target_pose_publisher_ =
     this->create_publisher<geometry_msgs::msg::PoseStamped>("target_pose", 10);
