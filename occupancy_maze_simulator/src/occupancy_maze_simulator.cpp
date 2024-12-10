@@ -224,12 +224,6 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
 
   RCLCPP_INFO(this->get_logger(), "origin: (%f, %f)", gridmap_origin_x_, gridmap_origin_y_);
 
-  // for (int y = 0; y < height_; ++y) {
-  //   for (int x = 0; x < width_; ++x) {
-  //     grid_msg.data.push_back(0);
-  //   }
-  // }
-
   // 障害物の配置
   for (const auto & obstacle : obstacles) {
     // obstacle x,yはgridmapの座標系であって、0~width_, 0~height_の範囲に収まっている。
@@ -428,6 +422,7 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
 void OccupancyMazeSimulator::publish_gridmap()
 {
   occupancy_grid_publisher_->publish(grid_map_);
+  RCLCPP_INFO(this->get_logger(), "Trial Count: %d", trial_count_);
 }
 
 // Default option for robot position calculation
@@ -439,14 +434,14 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   last_update_time_ = current_time;
 
   // Update position based on both x and y velocities and orientation
-  double delta_x =
-    msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
-  double delta_y =
-    msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
-  double delta_yaw = msg->angular.z * dt;
-  // double delta_x = msg->linear.x * dt;
-  // double delta_y = msg->linear.y * dt;
+  // double delta_x =
+  //   msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
+  // double delta_y =
+  //   msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
   // double delta_yaw = msg->angular.z * dt;
+  double delta_x = msg->linear.x * dt;
+  double delta_y = msg->linear.y * dt;
+  double delta_yaw = msg->angular.z * dt;
 
   robot_x_ += delta_x;
   robot_y_ += delta_y;
