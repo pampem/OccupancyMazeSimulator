@@ -31,7 +31,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
-  this->declare_parameter<std::string>("robot_pose_topic", "drone1/mavros/vision_pose/pose");
+  this->declare_parameter<std::string>("robot_pose_topic", "mavros/vision_pose/pose");
+  this->declare_parameter("robot_velocity_topic", "mavros/setpoint_velocity/cmd_vel_unstamped");
+  this->declare_parameter("robot_count", robot_count_);
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -47,6 +49,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("max_trial_count", max_trial_count_);
   this->get_parameter("simulation_timeout", timeout_);
   this->get_parameter("robot_pose_topic", robot_pose_topic_);
+  this->get_parameter("robot_velocity_topic", robot_velocity_topic_);
+  this->get_parameter("robot_count", robot_count_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -89,7 +93,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     this->create_publisher<visualization_msgs::msg::Marker>("text_marker", 10);
 
   twist_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
-    "drone1/mavros/setpoint_velocity/cmd_vel_unstamped", 10,
+    robot_velocity_topic_, 10,
     std::bind(&OccupancyMazeSimulator::twist_callback, this, std::placeholders::_1));
 
   reset_subscriber_ = this->create_subscription<std_msgs::msg::Empty>(

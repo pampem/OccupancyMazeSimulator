@@ -8,6 +8,7 @@ from launch import LaunchDescription
 from launch.actions import ExecuteProcess
 from launch_ros.actions import Node
 
+
 def save_params_to_csv(file_path, params):
     """
     Save parameters to a CSV file.
@@ -18,14 +19,18 @@ def save_params_to_csv(file_path, params):
         for param_name, param_value in params.items():
             writer.writerow([param_name, param_value])
 
+
 def generate_launch_description():
     ld = LaunchDescription()
 
-    package_share_directory = get_package_share_directory('occupancy_maze_simulator')
+    package_share_directory = get_package_share_directory(
+        'occupancy_maze_simulator')
 
     # Generate CSV filename with current date and time
     current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     save_csv_file_path = os.path.join(f'data_rosparam_{current_date}.csv')
+
+    namespace = 'drone2'
 
     omc_params = {
         "gridmap.resolution": 1.0,
@@ -40,7 +45,8 @@ def generate_launch_description():
         "maze.density": 0.1,
         "max_trial_count": 100,
         "simulation_timeout": 100.0,
-        "robot_pose_topic": "drone1/mavros/vision_pose/pose",
+        "robot_pose_topic": "mavros/vision_pose/pose",
+        "robot_velocity_topic": "mavros/setpoint_velocity/cmd_vel_unstamped",
     }
 
     omc_node = Node(
@@ -49,6 +55,7 @@ def generate_launch_description():
         output="screen",
         parameters=[omc_params],
         arguments=["--ros-args", "--log-level", "info"],
+        namespace=namespace,
     )
 
     path_planner_params = {
@@ -60,9 +67,10 @@ def generate_launch_description():
         "rotational_force.gain": 1.0,
         "rotational_force.influence_distance": 3.0,
         "rotational_force.max": 2.0,
-        "robot_pose_topic": "drone1/mavros/vision_pose/pose",
+        "robot_velocity.max": 2.0,
+        "robot_pose_topic": "mavros/vision_pose/pose",
         "gridmap_topic": "slam_gridmap",
-        "robot_velocity_topic": "drone1/mavros/setpoint_velocity/cmd_vel_unstamped",
+        "robot_velocity_topic": "mavros/setpoint_velocity/cmd_vel_unstamped",
     }
 
     path_planner_node = Node(
@@ -71,15 +79,19 @@ def generate_launch_description():
         output="screen",
         parameters=[path_planner_params],
         arguments=["--ros-args", "--log-level", "info"],
+        namespace=namespace,
     )
 
-    rviz_config_path = os.path.join(package_share_directory, 'rviz', 'config.rviz')
+    rviz_config_path = os.path.join(
+        package_share_directory, 'rviz', 'config.rviz')
 
     rviz = Node(
         package='rviz2',
         executable='rviz2',
         output='screen',
-        arguments=['--display-config', rviz_config_path]
+        arguments=['--display-config', rviz_config_path],
+        # TODO: 複数台シミュレーションを実装した場合、ここはnamespaceを適用しないなど対応
+        namespace=namespace,
     )
 
     # Save applied parameters to a CSV file for record-keeping
@@ -95,6 +107,7 @@ def generate_launch_description():
     )
 
     return ld
+
 
 if __name__ == "__main__":
     generate_launch_description()
