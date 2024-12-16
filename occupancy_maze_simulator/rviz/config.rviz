@@ -129,6 +129,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.30000001192092896
       Shape: Axes
+      Shape: Axes
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -137,27 +138,6 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /drone1/mavros/vision_pose/pose
       Value: true
-    - Alpha: 0.699999988079071
-      Class: rviz_default_plugins/Map
-      Color Scheme: map
-      Draw Behind: false
-      Enabled: false
-      Name: Current Robot Position Map
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /current_robot_position_gridmap
-      Update Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /current_robot_position_gridmap_updates
-      Use Timestamp: false
-      Value: false
     - Class: rviz_default_plugins/Marker
       Enabled: true
       Name: Contours
@@ -258,6 +238,7 @@ Visualization Manager:
       Enabled: true
       Name: text_marker
       Namespaces:
+        text_marker: true
         text_marker: true
       Topic:
         Depth: 5
