@@ -4,9 +4,6 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess
-from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch_ros.actions import Node
 
 
@@ -48,7 +45,9 @@ def generate_launch_description():
                 "repulsive_force.influence_distance": 2.0,
                 "repulsive_force.gain": 2.0,
                 "repulsive_force.max": 3.0,
-                "rotational_force.gain": 0.5,
+                "rotational_force.gain": 1.0,
+                "rotational_force.influence_distance": 3.0,
+                "rotational_force.max": 2.0,
                 "robot_pose_topic": "drone1/mavros/vision_pose/pose",
                 "gridmap_topic": "slam_gridmap",
                 "robot_velocity_topic": "drone1/mavros/setpoint_velocity/cmd_vel_unstamped",
