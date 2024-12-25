@@ -30,7 +30,7 @@ def generate_launch_description():
     current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     save_csv_file_path = os.path.join(f'data_rosparam_{current_date}.csv')
 
-    namespace = 'drone2'
+    namespace = 'drone1'
 
     omc_params = {
         "gridmap.resolution": 1.0,

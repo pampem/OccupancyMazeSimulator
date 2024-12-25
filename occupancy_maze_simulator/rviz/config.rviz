@@ -4,8 +4,11 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /Grid1
-        - /Robot_pose1
+        - /Contours1
+        - /Image1
+        - /Centroids1
+        - /Rotational Force1
+        - /ngp_marker1
       Splitter Ratio: 0.5
     Tree Height: 266
   - Class: rviz_common/Selection
@@ -61,13 +64,13 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /gridmap
+        Value: /drone1/gridmap
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /gridmap_updates
+        Value: /drone1/gridmap_updates
       Use Timestamp: false
       Value: true
     - Class: rviz_default_plugins/Axes
@@ -95,7 +98,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /start_pose
+        Value: /drone1/start_pose
       Value: true
     - Alpha: 1
       Axes Length: 1
@@ -115,7 +118,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /target_pose
+        Value: /drone1/target_pose
       Value: true
     - Alpha: 1
       Axes Length: 1
@@ -128,7 +131,6 @@ Visualization Manager:
       Name: Robot_pose
       Shaft Length: 1
       Shaft Radius: 0.30000001192092896
-      Shape: Axes
       Shape: Axes
       Topic:
         Depth: 5
@@ -149,7 +151,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /contours_marker
+        Value: /drone1/contours_marker
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -163,7 +165,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /contours_image
+        Value: /drone1/contours_image
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
@@ -175,7 +177,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /centroids_marker
+        Value: /drone1/centroids_marker
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
@@ -187,7 +189,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /rotational_force_marker
+        Value: /drone1/rotational_force_marker
       Value: true
     - Alpha: 0.699999988079071
       Class: rviz_default_plugins/Map
@@ -201,13 +203,13 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /slam_gridmap
+        Value: /drone1/slam_gridmap
       Update Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /slam_gridmap_updates
+        Value: /drone1/slam_gridmap_updates
       Use Timestamp: false
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -220,7 +222,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /ngp_marker
+        Value: /drone1/ngp_marker
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
@@ -232,25 +234,24 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /nsp_marker
+        Value: /drone1/nsp_marker
       Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: true
       Name: text_marker
       Namespaces:
-        text_marker: true
-        text_marker: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /text_marker
+        Value: /drone1/text_marker
       Value: true
     - Class: rviz_default_plugins/MarkerArray
       Enabled: true
-      Name: MarkerArray
+      Name: forces
       Namespaces:
         forces: true
       Topic:
@@ -258,7 +259,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /forces_marker
+        Value: /drone1/forces_marker
       Value: true
   Enabled: true
   Global Options:
@@ -306,25 +307,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 117.55462646484375
+      Distance: 102.72911834716797
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.37704235315322876
-        Y: 16.18562126159668
-        Z: -39.21910858154297
+        X: 3.388414144515991
+        Y: 16.553903579711914
+        Z: -38.6039924621582
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.2147966623306274
+      Pitch: 1.1047967672348022
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.32856559753418
+      Yaw: 4.493569374084473
     Saved: ~
 Window Geometry:
   ButtonPanel:
