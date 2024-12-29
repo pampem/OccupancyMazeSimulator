@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/25.0.1 Chrome/128.0.6613.186 Electron/32.2.6 Safari/537.36" version="25.0.1">
   <diagram name="Page-1" id="C0TTzloq1Vdm2UTvwTLK">
-    <mxGraphModel dx="793" dy="927" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+    <mxGraphModel dx="1456" dy="725" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -10,7 +10,7 @@
         <mxCell id="Qm9friMbtk5Wdlpzol8I-1" value="Gridmap上セルの選択が可能" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="140" y="95" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="Qm9friMbtk5Wdlpzol8I-2" value="&lt;div&gt;&lt;b&gt;gridmap_selector&lt;/b&gt;&lt;/div&gt;Reactアプリケーション&lt;div&gt;（rosbridge_serverと連携）&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
+        <mxCell id="Qm9friMbtk5Wdlpzol8I-2" value="&lt;div&gt;&lt;b&gt;gridmap_creator&lt;/b&gt;&lt;/div&gt;Reactアプリケーション&lt;div&gt;（rosbridge_serverと連携）&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="117.5" y="50" width="175" height="40" as="geometry" />
         </mxCell>
         <mxCell id="Qm9friMbtk5Wdlpzol8I-3" value="セル選択後、Applyボタン押下によって選択状態の更新をTrigger" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
@@ -30,6 +30,9 @@
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-5" value="&lt;b&gt;nav2_map_server&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="400" y="55" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lpFblWUsz3aCrupPQczd-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-6" target="lpFblWUsz3aCrupPQczd-9">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-6" value="if mode = selected" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="585" y="159" width="120" height="60" as="geometry" />
@@ -85,13 +88,10 @@
         <mxCell id="lpFblWUsz3aCrupPQczd-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.453;entryY=-0.005;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-6" target="lpFblWUsz3aCrupPQczd-8">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="lpFblWUsz3aCrupPQczd-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.506;entryY=-0.006;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-8" target="lpFblWUsz3aCrupPQczd-9">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-28" target="lpFblWUsz3aCrupPQczd-29">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="lpFblWUsz3aCrupPQczd-28" value="&lt;b&gt;gridmap_selector起動時&lt;/b&gt;&lt;div&gt;&lt;b&gt;or&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Fetchボタン押下&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="lpFblWUsz3aCrupPQczd-28" value="&lt;b&gt;gridmap_creator起動時&lt;/b&gt;&lt;div&gt;&lt;b&gt;or&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Fetchボタン押下&lt;/b&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="110" y="315" width="190" height="60" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-29" target="lpFblWUsz3aCrupPQczd-31">
@@ -102,6 +102,28 @@
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-31" value="結果をアプリ上で可視化" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="130" y="475" width="150" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lpFblWUsz3aCrupPQczd-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-33" target="lpFblWUsz3aCrupPQczd-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="830" y="530" />
+              <mxPoint x="830" y="285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lpFblWUsz3aCrupPQczd-33" value="/selected_gridmap&lt;div&gt;Subscribe&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="500" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lpFblWUsz3aCrupPQczd-34" value="gridmap_creatorとの&lt;div&gt;リアルタイム連携も可能&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="680" y="494" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lpFblWUsz3aCrupPQczd-37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=-0.002;entryY=0.611;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-1" target="lpFblWUsz3aCrupPQczd-33">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="290" />
+              <mxPoint x="370" y="537" />
+            </Array>
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
