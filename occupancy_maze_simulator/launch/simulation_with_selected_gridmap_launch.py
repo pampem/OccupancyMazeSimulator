@@ -5,9 +5,12 @@ from datetime import datetime
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from launch_ros.actions import Node
-
+from launch.substitutions import PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 
 def save_params_to_csv(file_path, params):
     """
@@ -23,7 +26,27 @@ def save_params_to_csv(file_path, params):
 def generate_launch_description():
     ld = LaunchDescription()
 
-    package_share_directory = get_package_share_directory(
+    rosbridge_launch = IncludeLaunchDescription(
+        XMLLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('occupancy_maze_simulator'),
+                'launch', 'sub',
+                'rosbridge_websocket_launch.xml'
+            ])
+        )
+    )
+
+    map_server_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('occupancy_maze_simulator'),
+                'launch', 'sub',
+                'map_saver_server.launch.py'
+            ])
+        ])
+    )
+
+    omc_share_directory = get_package_share_directory(
         'occupancy_maze_simulator')
 
     # Generate CSV filename with current date and time
@@ -33,6 +56,7 @@ def generate_launch_description():
     namespace = 'drone1'
 
     omc_params = {
+        "obstacle_mode": "select",
         "gridmap.resolution": 1.0,
         "gridmap.x": 50.0,
         "gridmap.y": 50.0,
@@ -83,7 +107,7 @@ def generate_launch_description():
     )
 
     rviz_config_path = os.path.join(
-        package_share_directory, 'rviz', 'config.rviz')
+        omc_share_directory, 'rviz', 'config.rviz')
 
     rviz = Node(
         package='rviz2',
@@ -98,12 +122,14 @@ def generate_launch_description():
     applied_params = {**omc_params, **path_planner_params}
     save_params_to_csv(save_csv_file_path, applied_params)
 
+    ld.add_action(rosbridge_launch)
+    ld.add_action(map_server_launch)
     ld.add_action(omc_node)
     ld.add_action(path_planner_node)
     ld.add_action(rviz)
     ld.add_action(
         ExecuteProcess(
-            cmd=["echo", "real flight setup complete."], output="screen")
+            cmd=["echo", "simulation setup complete."], output="screen")
     )
 
     return ld

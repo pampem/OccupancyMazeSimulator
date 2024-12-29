@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import ROSLIB from 'roslib';
 
 const ros = new ROSLIB.Ros({
-  url: 'ws://localhost:9090'
+  url: 'ws://localhost:9098'
 });
 
 ros.on('connection', function() {

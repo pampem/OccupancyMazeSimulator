@@ -103,7 +103,7 @@ def generate_launch_description():
     ld.add_action(rviz)
     ld.add_action(
         ExecuteProcess(
-            cmd=["echo", "real flight setup complete."], output="screen")
+            cmd=["echo", "simulation setup complete."], output="screen")
     )
 
     return ld
