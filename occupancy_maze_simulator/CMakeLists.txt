@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2 REQUIRED)
@@ -32,6 +33,7 @@ ament_target_dependencies(occupancy_maze_simulator
   rclcpp_components
   geometry_msgs
   nav_msgs
+  nav2_msgs
   tf2
   tf2_ros
   std_msgs

@@ -5,12 +5,13 @@ from datetime import datetime
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription
+from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
+
 
 def save_params_to_csv(file_path, params):
     """
@@ -45,13 +46,6 @@ def generate_launch_description():
             ])
         ])
     )
-
-    omc_share_directory = get_package_share_directory(
-        'occupancy_maze_simulator')
-
-    # Generate CSV filename with current date and time
-    current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    save_csv_file_path = os.path.join(f'data_rosparam_{current_date}.csv')
 
     namespace = 'drone1'
 
@@ -106,6 +100,8 @@ def generate_launch_description():
         namespace=namespace,
     )
 
+    omc_share_directory = get_package_share_directory(
+        'occupancy_maze_simulator')
     rviz_config_path = os.path.join(
         omc_share_directory, 'rviz', 'config.rviz')
 
@@ -120,11 +116,19 @@ def generate_launch_description():
 
     # Save applied parameters to a CSV file for record-keeping
     applied_params = {**omc_params, **path_planner_params}
+    # Generate CSV filename with current date and time
+    current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    save_csv_file_path = os.path.join(f'data_rosparam_{current_date}.csv')
     save_params_to_csv(save_csv_file_path, applied_params)
 
     ld.add_action(rosbridge_launch)
     ld.add_action(map_server_launch)
-    ld.add_action(omc_node)
+    ld.add_action(
+        TimerAction(
+            period=10.0,
+            actions=[omc_node],
+        )
+    )
     ld.add_action(path_planner_node)
     ld.add_action(rviz)
     ld.add_action(

@@ -19,13 +19,13 @@ ros.on('close', function() {
 
 const gridmap_topic = new ROSLIB.Topic({
   ros: ros,
-  name: '/slam_gridmap',
+  name: 'drone1/slam_gridmap',
   messageType: 'nav_msgs/OccupancyGrid'
 });
 
 const selectedGridmapPublisher = new ROSLIB.Topic({
   ros: ros,
-  name: '/selected_gridmap',
+  name: 'drone1/selected_gridmap',
   messageType: 'nav_msgs/OccupancyGrid'
 });
 

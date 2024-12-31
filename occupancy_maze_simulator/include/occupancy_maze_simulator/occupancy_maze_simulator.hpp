@@ -12,6 +12,8 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <nav2_msgs/srv/load_map.hpp>
+#include <nav2_msgs/srv/save_map.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -73,6 +75,8 @@ private:
   void simulate_lidar_scan();
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
+
+  void handle_load_map_response(rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedFuture result);
 
   std_msgs::msg::ColorRGBA default_color_;
   void publish_text_marker(
@@ -137,6 +141,8 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
+  rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
+  rclcpp::Client<nav2_msgs::srv::SaveMap>::SharedPtr save_map_client_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
