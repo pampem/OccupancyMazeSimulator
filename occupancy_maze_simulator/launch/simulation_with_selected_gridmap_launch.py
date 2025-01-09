@@ -24,7 +24,9 @@ def save_params_to_csv(file_path, params):
             writer.writerow([param_name, param_value])
 
 
-def generate_launch_description():
+def generate_launch_description(namespace: str = 'drone1'):
+    # namespace = 'drone1'
+
     ld = LaunchDescription()
 
     rosbridge_launch = IncludeLaunchDescription(
@@ -46,8 +48,6 @@ def generate_launch_description():
             ])
         ])
     )
-
-    namespace = 'drone1'
 
     omc_params = {
         "obstacle_mode": "select",

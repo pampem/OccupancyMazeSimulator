@@ -52,7 +52,7 @@ def generate_launch_description():
     # 元のファイルだとTransitionに失敗していたため、TimerActionを追加して修正。
     ld.add_action(
         TimerAction(
-            period=5.0,
+            period=2.0,
             actions=[start_lifecycle_manager_cmd],
         )
     )

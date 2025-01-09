@@ -107,9 +107,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
-  load_map_client_ = this->create_client<nav2_msgs::srv::LoadMap>("map_server/load_map");
+  load_map_client_ = this->create_client<nav2_msgs::srv::LoadMap>("/map_server/load_map");
 
-  save_map_client_ = this->create_client<nav2_msgs::srv::SaveMap>("map_saver/save_map");
+  save_map_client_ = this->create_client<nav2_msgs::srv::SaveMap>("/map_saver/save_map");
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
 
@@ -155,23 +155,45 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
       // nav2_map_serverのマップを読み込み
       auto load_map_request = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
       const char * home_dir = std::getenv("HOME");
-       if (home_dir == nullptr) {
+      if (home_dir == nullptr) {
         RCLCPP_ERROR(this->get_logger(), "Couldn't get the home directory.");
       }
       std::string home_directory(home_dir);
       std::string relative_path = "/.ros/save/selected_gridmap.yaml";
       // std::string full_path_selected_gridmap_filename_ = home_directory + relative_path;
       load_map_request->map_url = home_directory + relative_path;
-      if (load_map_client_->service_is_ready()) {
-        load_map_client_->async_send_request(load_map_request);
-        // auto future = load_map_client_->async_send_request(load_map_request,
-        //     std::bind(&OccupancyMazeSimulator::handle_load_map_response, this, std::placeholders::_1));
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "LoadMap service is not ready.");
+      while (!load_map_client_->wait_for_service(std::chrono::seconds(1))) {
+        if (!rclcpp::ok()) {
+          RCLCPP_ERROR(
+            this->get_logger(), "Interrupted while waiting for the load_map service. Exiting.");
+          break;
+        }
+        RCLCPP_INFO(this->get_logger(), "load_map service not available, waiting again...");
       }
+
+      auto load_map_result = load_map_client_->async_send_request(load_map_request);
+      if (
+        rclcpp::spin_until_future_complete(this->get_node_base_interface(), load_map_result) ==
+        rclcpp::FutureReturnCode::SUCCESS) {
+          grid_map_ = load_map_result.get()->map;
+        
+        RCLCPP_INFO(this->get_logger(), "Received gridmap data from map_server.");
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to call service load_map");
+      }
+
+      // if (load_map_client_->service_is_ready()) {
+      //   load_map_client_->async_send_request(load_map_request);
+      //   auto future = load_map_client_->async_send_request(
+      //     load_map_request,
+      //     std::bind(
+      //       &OccupancyMazeSimulator::handle_load_map_response, this, std::placeholders::_1));
+      // } else {
+      //   RCLCPP_ERROR(this->get_logger(), "LoadMap service is not ready.");
+      // }
       // TODO(Izumita): SaveMapもcall。map_saverに対して。
       // selected_gridmapのsubも実装。 -> resetはせず、現在のgrid_map_を更新するのみ。
-      grid_map_ = create_empty_grid_map();
+      // grid_map_ = create_empty_grid_map();
       break;
     } else {
       RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
@@ -240,12 +262,12 @@ void OccupancyMazeSimulator::failed_callback(std_msgs::msg::String::SharedPtr ms
 void OccupancyMazeSimulator::handle_load_map_response(
   const rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedFuture result)
 {
-  const auto& response = result.get();
+  const auto & response = result.get();
   if (!response) {
     RCLCPP_ERROR(this->get_logger(), "LoadMap service failed.");
     return;
   }
-  if(response->result == 0){
+  if (response->result == 0) {
     grid_map_ = response->map;
     RCLCPP_INFO(this->get_logger(), "Received gridmap data from map_server.");
   } else {
@@ -253,7 +275,9 @@ void OccupancyMazeSimulator::handle_load_map_response(
     // とりあえず、slam_girdmapをPubしておけばReact側でSelected_gridmapを生成できるので、
     // こちら側ではslam_gridmapのpubと現状のGridmapは空としておく。
     // INFO msgで、react側でSelected Gridmapを生成してください、とする。
-    RCLCPP_ERROR(this->get_logger(), "LoadMap service response result indicate fail. data: %d", response->result);
+    RCLCPP_ERROR(
+      this->get_logger(), "LoadMap service response result indicate fail. data: %d",
+      response->result);
   }
   // is_recieved_gridmap_ = true;
 }
@@ -448,7 +472,7 @@ void OccupancyMazeSimulator::publish_pose()
 
 void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     this->get_logger(), "Received Twist message: linear=%f, angular=%f", msg->linear.x,
     msg->angular.z);
   simulate_robot_position(msg);
@@ -486,9 +510,11 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
 
   // Update position based on both x and y velocities and orientation
   // double delta_x =
-  //   msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
+  //   msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) *
+  //   dt;
   // double delta_y =
-  //   msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
+  //   msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) *
+  //   dt;
   // double delta_yaw = msg->angular.z * dt;
   double delta_x = msg->linear.x * dt;
   double delta_y = msg->linear.y * dt;
@@ -516,7 +542,7 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   //   hit_count_++;
   // }
 
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     this->get_logger(), "Updated Robot Position: [x: %f, y: %f, yaw: %f]", robot_x_, robot_y_,
     yaw_);
 }
