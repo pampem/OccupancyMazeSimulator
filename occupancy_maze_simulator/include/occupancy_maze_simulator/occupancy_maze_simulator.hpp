@@ -7,11 +7,14 @@
 #define OCCUPANCY_MAZE_SIMULATOR__OCCUPANCY_MAZE_SIMULATOR_HPP_
 
 #include <Eigen/Dense>
+#include <nav2_map_server/map_io.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <nav2_msgs/srv/load_map.hpp>
+#include <nav2_msgs/srv/save_map.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -83,6 +86,8 @@ private:
 
   void failed_callback(std_msgs::msg::String::SharedPtr msg);
 
+  void selected_gridmap_callback(nav_msgs::msg::OccupancyGrid::SharedPtr msg);
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
@@ -106,9 +111,12 @@ private:
   double gridmap_origin_y_;
   float maze_density_;
   std::string obstacle_mode_;
+  std::string full_path_selected_gridmap_filename_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
   std::string robot_pose_topic_;
+  std::string robot_velocity_topic_;
+  int robot_count_ = 1;
 
   // 自動評価のための変数
   std::string csv_stat_file_name_;
@@ -135,9 +143,11 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
+  rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr selected_gridmap_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator

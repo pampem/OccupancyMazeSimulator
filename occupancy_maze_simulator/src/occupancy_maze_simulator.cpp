@@ -5,10 +5,15 @@
  */
 #include <occupancy_maze_simulator/occupancy_maze_simulator.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <limits>
+#include <memory>
 #include <queue>
 #include <random>
+#include <string>
+#include <vector>
 
 namespace occupancy_maze_simulator
 {
@@ -31,7 +36,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
-  this->declare_parameter<std::string>("robot_pose_topic", "drone1/mavros/vision_pose/pose");
+  this->declare_parameter<std::string>("robot_pose_topic", "mavros/vision_pose/pose");
+  this->declare_parameter("robot_velocity_topic", "mavros/setpoint_velocity/cmd_vel_unstamped");
+  this->declare_parameter("robot_count", robot_count_);
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -47,6 +54,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("max_trial_count", max_trial_count_);
   this->get_parameter("simulation_timeout", timeout_);
   this->get_parameter("robot_pose_topic", robot_pose_topic_);
+  this->get_parameter("robot_velocity_topic", robot_velocity_topic_);
+  this->get_parameter("robot_count", robot_count_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -79,7 +88,12 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   default_color_.b = 1.0;
   default_color_.a = 1.0;
 
-  occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
+  rclcpp::QoS qos_settings(10);
+  qos_settings.durability(rmw_qos_durability_policy_t::RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+
+  occupancy_grid_publisher_ =
+    this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", qos_settings);
+
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(robot_pose_topic_, 10);
   start_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("start_pose", 10);
@@ -89,7 +103,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     this->create_publisher<visualization_msgs::msg::Marker>("text_marker", 10);
 
   twist_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
-    "drone1/mavros/setpoint_velocity/cmd_vel_unstamped", 10,
+    robot_velocity_topic_, 10,
     std::bind(&OccupancyMazeSimulator::twist_callback, this, std::placeholders::_1));
 
   reset_subscriber_ = this->create_subscription<std_msgs::msg::Empty>(
@@ -102,6 +116,45 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     "failed", 10, std::bind(&OccupancyMazeSimulator::failed_callback, this, std::placeholders::_1));
 
   emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
+
+  load_map_client_ = this->create_client<nav2_msgs::srv::LoadMap>("/map_server/load_map");
+
+  selected_gridmap_subscriber_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
+    "selected_gridmap", 10,
+    std::bind(&OccupancyMazeSimulator::selected_gridmap_callback, this, std::placeholders::_1));
+
+  if (obstacle_mode_ == "select") {
+    RCLCPP_INFO(this->get_logger(), "Select mode, loading selected gridmap.");
+    // nav2_map_serverのマップを読み込み
+    auto load_map_request = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
+    const char * home_dir = std::getenv("HOME");
+    if (home_dir == nullptr) {
+      RCLCPP_ERROR(this->get_logger(), "Couldn't get the home directory.");
+    }
+    std::string home_directory(home_dir);
+    std::string relative_path = "/.ros/save/selected_gridmap";
+    full_path_selected_gridmap_filename_ = home_directory + relative_path;
+    load_map_request->map_url = full_path_selected_gridmap_filename_ + ".yaml";
+    while (!load_map_client_->wait_for_service(std::chrono::seconds(1))) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(
+          this->get_logger(), "Interrupted while waiting for the load_map service. Exiting.");
+        break;
+      }
+      RCLCPP_INFO(this->get_logger(), "load_map service not available, waiting again...");
+    }
+
+    auto load_map_result = load_map_client_->async_send_request(load_map_request);
+    if (
+      rclcpp::spin_until_future_complete(this->get_node_base_interface(), load_map_result) ==
+      rclcpp::FutureReturnCode::SUCCESS) {
+      grid_map_ = load_map_result.get()->map;
+
+      RCLCPP_INFO(this->get_logger(), "Received gridmap data from map_server.");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Failed to call service load_map");
+    }
+  }
 
   reset_callback(std_msgs::msg::Empty::SharedPtr());
 
@@ -143,6 +196,8 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
       obstacles = generate_maze_obstacles();
     } else if (obstacle_mode_ == "random") {
       obstacles = generate_random_obstacles(10);
+    } else if (obstacle_mode_ == "select") {
+      break;
     } else {
       RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
       return;
@@ -160,8 +215,9 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   } while (!path_exists);
 
   RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
-  publish_gridmap_timer_ = this->create_wall_timer(
-    std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+  // publish_gridmap_timer_ = this->create_wall_timer(
+  //   std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+  publish_gridmap();
 
   last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
 
@@ -224,12 +280,6 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
 
   RCLCPP_INFO(this->get_logger(), "origin: (%f, %f)", gridmap_origin_x_, gridmap_origin_y_);
 
-  // for (int y = 0; y < height_; ++y) {
-  //   for (int x = 0; x < width_; ++x) {
-  //     grid_msg.data.push_back(0);
-  //   }
-  // }
-
   // 障害物の配置
   for (const auto & obstacle : obstacles) {
     // obstacle x,yはgridmapの座標系であって、0~width_, 0~height_の範囲に収まっている。
@@ -260,6 +310,35 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
   grid_msg.data.resize(width_ * height_, 0);
 
   return grid_msg;
+}
+
+void OccupancyMazeSimulator::selected_gridmap_callback(
+  const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+{
+  RCLCPP_INFO(this->get_logger(), "Received selected grid map, saving it to file...");
+
+  nav2_map_server::SaveParameters save_parameters;
+  save_parameters.map_file_name = full_path_selected_gridmap_filename_;
+  save_parameters.image_format = "pgm";                  // "pgm", "png"
+  save_parameters.mode = nav2_map_server::MapMode::Raw;  // Trinary, Scale, Raw
+
+  try {
+    nav2_map_server::saveMapToFile(*msg, save_parameters);
+    RCLCPP_INFO(this->get_logger(), "Map saved successfully.");
+    std::ifstream f(full_path_selected_gridmap_filename_ + ".yaml");
+    if (!f.good()) {
+      RCLCPP_ERROR(
+        this->get_logger(), "Failed to save map, file does not exist: %s",
+        (full_path_selected_gridmap_filename_ + ".yaml").c_str());
+      return;
+    }
+  } catch (const std::exception & e) {
+    RCLCPP_ERROR(this->get_logger(), "Failed to save map: %s", e.what());
+    return;
+  }
+  grid_map_ = *msg;
+  publish_gridmap();
+  RCLCPP_INFO(this->get_logger(), "Received selected gridmap data.");
 }
 
 bool OccupancyMazeSimulator::is_path_to_target(
@@ -403,7 +482,7 @@ void OccupancyMazeSimulator::publish_pose()
 
 void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     this->get_logger(), "Received Twist message: linear=%f, angular=%f", msg->linear.x,
     msg->angular.z);
   simulate_robot_position(msg);
@@ -428,6 +507,7 @@ void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::Sha
 void OccupancyMazeSimulator::publish_gridmap()
 {
   occupancy_grid_publisher_->publish(grid_map_);
+  RCLCPP_INFO(this->get_logger(), "Trial Count: %d", trial_count_);
 }
 
 // Default option for robot position calculation
@@ -439,14 +519,16 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   last_update_time_ = current_time;
 
   // Update position based on both x and y velocities and orientation
-  double delta_x =
-    msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) * dt;
-  double delta_y =
-    msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) * dt;
-  double delta_yaw = msg->angular.z * dt;
-  // double delta_x = msg->linear.x * dt;
-  // double delta_y = msg->linear.y * dt;
+  // double delta_x =
+  //   msg->linear.x * std::cos(yaw_ - M_PI / 4) * dt - msg->linear.y * std::sin(yaw_ - M_PI / 4) *
+  //   dt;
+  // double delta_y =
+  //   msg->linear.x * std::sin(yaw_ - M_PI / 4) * dt + msg->linear.y * std::cos(yaw_ - M_PI / 4) *
+  //   dt;
   // double delta_yaw = msg->angular.z * dt;
+  double delta_x = msg->linear.x * dt;
+  double delta_y = msg->linear.y * dt;
+  double delta_yaw = msg->angular.z * dt;
 
   robot_x_ += delta_x;
   robot_y_ += delta_y;
@@ -470,7 +552,7 @@ void OccupancyMazeSimulator::simulate_robot_position(geometry_msgs::msg::Twist::
   //   hit_count_++;
   // }
 
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     this->get_logger(), "Updated Robot Position: [x: %f, y: %f, yaw: %f]", robot_x_, robot_y_,
     yaw_);
 }

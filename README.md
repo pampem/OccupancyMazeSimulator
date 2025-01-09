@@ -18,6 +18,35 @@ ros2 run occupancy_maze_simulator occupancy_maze_simulator_node \
 --param maze.density:=0.1
 ```
 
-obstacle_mode: maze or random
+obstacle_mode: maze or random or select
+
+## select modeの使い方
+
+gridmap_creator という、Reactのウェブアプリケーションを使ってインタラクティブにGridMapを制作できます。
+制作したGridMapは
+```
+~/.ros/save/selected_gridmap.yaml
+~/.ros/save/selected_gridmap.pgm
+```
+として保存されますが、初回はここにGridMapが存在せずエラーになるため、
+```
+occupancy_maze_simulator/occupancy_maze_simulator/asset/saved_map/selected_gridmap.yaml
+occupancy_maze_simulator/occupancy_maze_simulator/asset/saved_map/selected_gridmap.pgm
+```
+を
+`~/.ros/save/`
+以下にコピーしてください。
+
+その後、
+```bash
+ros2 launch occupancy_maze_simulator simulation_with_selected_gridmap_launch.py
+```
+で全てを起動できます。
+
+![select mode](occupancy_maze_simulator/doc/media/select_mode.png)
+
+### select modeのフローチャート
+
+![flow chart](occupancy_maze_simulator/doc/customizable_gridmap_handling_v2.webp)
 
 ![poem](occupancy_maze_simulator/doc/media/poemByCodeRabbit.png)
