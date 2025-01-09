@@ -123,6 +123,39 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     "selected_gridmap", 10,
     std::bind(&OccupancyMazeSimulator::selected_gridmap_callback, this, std::placeholders::_1));
 
+  if(obstacle_mode_ == "select") {
+    RCLCPP_INFO(this->get_logger(), "Select mode, loading selected gridmap.");
+      // nav2_map_serverのマップを読み込み
+    auto load_map_request = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
+    const char * home_dir = std::getenv("HOME");
+    if (home_dir == nullptr) {
+      RCLCPP_ERROR(this->get_logger(), "Couldn't get the home directory.");
+    }
+    std::string home_directory(home_dir);
+    std::string relative_path = "/.ros/save/selected_gridmap";
+    full_path_selected_gridmap_filename_ = home_directory + relative_path;
+    load_map_request->map_url = full_path_selected_gridmap_filename_ + ".yaml";
+    while (!load_map_client_->wait_for_service(std::chrono::seconds(1))) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(
+          this->get_logger(), "Interrupted while waiting for the load_map service. Exiting.");
+        break;
+      }
+      RCLCPP_INFO(this->get_logger(), "load_map service not available, waiting again...");
+    }
+
+    auto load_map_result = load_map_client_->async_send_request(load_map_request);
+    if (
+      rclcpp::spin_until_future_complete(this->get_node_base_interface(), load_map_result) ==
+      rclcpp::FutureReturnCode::SUCCESS) {
+      grid_map_ = load_map_result.get()->map;
+
+      RCLCPP_INFO(this->get_logger(), "Received gridmap data from map_server.");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Failed to call service load_map");
+    }
+  }
+
   reset_callback(std_msgs::msg::Empty::SharedPtr());
 
   // 起動時にタイムスタンプを用いてCSVファイルを作成。
@@ -163,38 +196,7 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
       obstacles = generate_maze_obstacles();
     } else if (obstacle_mode_ == "random") {
       obstacles = generate_random_obstacles(10);
-
     } else if (obstacle_mode_ == "select") {
-      // nav2_map_serverのマップを読み込み
-      auto load_map_request = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
-      const char * home_dir = std::getenv("HOME");
-      if (home_dir == nullptr) {
-        RCLCPP_ERROR(this->get_logger(), "Couldn't get the home directory.");
-      }
-      std::string home_directory(home_dir);
-      std::string relative_path = "/.ros/save/selected_gridmap";
-      full_path_selected_gridmap_filename_ = home_directory + relative_path;
-      load_map_request->map_url = full_path_selected_gridmap_filename_ + ".yaml";
-      while (!load_map_client_->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-          RCLCPP_ERROR(
-            this->get_logger(), "Interrupted while waiting for the load_map service. Exiting.");
-          break;
-        }
-        RCLCPP_INFO(this->get_logger(), "load_map service not available, waiting again...");
-      }
-
-      auto load_map_result = load_map_client_->async_send_request(load_map_request);
-      if (
-        rclcpp::spin_until_future_complete(this->get_node_base_interface(), load_map_result) ==
-        rclcpp::FutureReturnCode::SUCCESS) {
-        grid_map_ = load_map_result.get()->map;
-
-        RCLCPP_INFO(this->get_logger(), "Received gridmap data from map_server.");
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "Failed to call service load_map");
-      }
-
       break;
     } else {
       RCLCPP_ERROR(this->get_logger(), "Invalid obstacle mode: %s", obstacle_mode_.c_str());
