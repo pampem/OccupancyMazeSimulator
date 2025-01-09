@@ -45,4 +45,8 @@ ros2 launch occupancy_maze_simulator simulation_with_selected_gridmap_launch.py
 
 ![select mode](occupancy_maze_simulator/doc/media/select_mode.png)
 
+### select modeのフローチャート
+
+![flow chart](occupancy_maze_simulator/doc/customizable_gridmap_handling_v2.webp)
+
 ![poem](occupancy_maze_simulator/doc/media/poemByCodeRabbit.png)
