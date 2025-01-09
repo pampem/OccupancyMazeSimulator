@@ -148,13 +148,20 @@ export default function GridMap() {
   return (
     <div className="grid-map">
       <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Gridmap Creator</h1>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', flexDirection: 'column-reverse' }}>
         {gridData.map((row, rowIndex) => (
-          <div key={rowIndex} className="grid-row" style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+          <div key={rowIndex} className="grid-row" style={{ display: 'flex', flexDirection: 'row' }}>
             {row.map((cell, colIndex) => {
               const key = `${colIndex}-${rowIndex}`;
               const isSelected = selectedCells.has(key);
-              const cellClass = isSelected && cell.value === 100 ? 'selected-occupied' : isSelected ? 'selected' : cell.value === 100 ? 'occupied' : 'free';
+              const cellClass =
+                isSelected && cell.value === 100
+                  ? 'selected-occupied'
+                  : isSelected
+                  ? 'selected'
+                  : cell.value === 100
+                  ? 'occupied'
+                  : 'free';
               return (
                 <div
                   key={key}
@@ -174,4 +181,4 @@ export default function GridMap() {
       </button>
     </div>
   );
-}
+}  
