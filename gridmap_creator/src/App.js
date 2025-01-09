@@ -29,10 +29,10 @@ const selectedGridmapPublisher = new ROSLIB.Topic({
   messageType: 'nav_msgs/OccupancyGrid'
 });
 
-const loadMapService = new ROSLIB.Service({
+const drone1GridmapTopic = new ROSLIB.Topic({
   ros: ros,
-  name: '/map_server/load_map',
-  serviceType: 'nav2_msgs/LoadMap'
+  name: 'drone1/gridmap',
+  messageType: 'nav_msgs/OccupancyGrid'
 });
 
 export default function GridMap() {
@@ -60,11 +60,12 @@ export default function GridMap() {
       setGridInfo(message.info);
     });
 
-    // Fetch the selected gridmap on component mount
+    // Subscribe to the drone1/gridmap topic
     fetchSelectedGridmap();
 
     return () => {
       gridmap_topic.unsubscribe();
+      drone1GridmapTopic.unsubscribe();
     };
   }, []);
 
@@ -108,42 +109,36 @@ export default function GridMap() {
   }
 
   function fetchSelectedGridmap() {
-    const homeDir = process.env.REACT_APP_HOME_DIR;
-    const mapUrl = `${homeDir}/.ros/save/selected_gridmap.yaml`;
-    const request = new ROSLIB.ServiceRequest({
-      map_url: mapUrl
-    });
-    loadMapService.callService(request, function(result) {
-      console.log('Service result:', result);
-
-      if (result.result !== 0) {
-        console.error('Failed to load map:', result.result);
-        return;
-      }
-
-      const width = result.map.info.width;
-      const height = result.map.info.height;
-      const data = result.map.data;
+    // Unsubscribe previous subscription to avoid duplication
+    drone1GridmapTopic.unsubscribe();
+  
+    // Subscribe to the topic
+    drone1GridmapTopic.subscribe(message => {
+      console.log('Received selected gridmap from drone1/gridmap:', message);
+      const width = message.info.width;
+      const height = message.info.height;
+      const data = message.data;
       const gridArray = [];
       const newSelectedCells = new Set();
-
+  
       for (let y = 0; y < height; y++) {
         const row = [];
         for (let x = 0; x < width; x++) {
           const index = x + y * width;
-          row.push({ value: data[index], x: x, y: y });
+          row.push({ value: data[index], x, y });
           if (data[index] === 100) {
             newSelectedCells.add(`${x}-${y}`);
           }
         }
         gridArray.push(row);
       }
-
+  
+      // Update gridData and replace selectedCells with ROS-provided state
       setGridData(gridArray);
-      setGridInfo(result.map.info);
-      setSelectedCells(newSelectedCells);
+      setGridInfo(message.info);
+      setSelectedCells(newSelectedCells); // Directly set the new state, overriding previous selections
     });
-  }
+  }  
 
   return (
     <div className="grid-map">
@@ -181,4 +176,4 @@ export default function GridMap() {
       </button>
     </div>
   );
-}  
+}

@@ -7,6 +7,7 @@
 #define OCCUPANCY_MAZE_SIMULATOR__OCCUPANCY_MAZE_SIMULATOR_HPP_
 
 #include <Eigen/Dense>
+#include <nav2_map_server/map_io.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
 
@@ -18,7 +19,6 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-#include <nav2_map_server/map_io.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>

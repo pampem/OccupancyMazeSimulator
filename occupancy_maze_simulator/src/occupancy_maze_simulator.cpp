@@ -123,9 +123,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
     "selected_gridmap", 10,
     std::bind(&OccupancyMazeSimulator::selected_gridmap_callback, this, std::placeholders::_1));
 
-  if(obstacle_mode_ == "select") {
+  if (obstacle_mode_ == "select") {
     RCLCPP_INFO(this->get_logger(), "Select mode, loading selected gridmap.");
-      // nav2_map_serverのマップを読み込み
+    // nav2_map_serverのマップを読み込み
     auto load_map_request = std::make_shared<nav2_msgs::srv::LoadMap::Request>();
     const char * home_dir = std::getenv("HOME");
     if (home_dir == nullptr) {
