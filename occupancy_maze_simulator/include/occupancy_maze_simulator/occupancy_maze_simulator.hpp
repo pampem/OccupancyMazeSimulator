@@ -144,7 +144,6 @@ private:
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
   rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
-  rclcpp::Client<nav2_msgs::srv::SaveMap>::SharedPtr save_map_client_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;

@@ -17,7 +17,12 @@
           <mxGeometry x="125.5" y="170" width="155" height="60" as="geometry" />
         </mxCell>
         <mxCell id="_t85q0Rl3mmEDD3trs_B-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-1" target="lpFblWUsz3aCrupPQczd-33">
-          <mxGeometry relative="1" as="geometry" />
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="350" y="275" />
+              <mxPoint x="350" y="535" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-1" value="nav_msgs::msg::OccupancyGrid&lt;div&gt;/selected_gridmap&lt;/div&gt;&lt;div&gt;publish&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="112.5" y="245" width="210" height="60" as="geometry" />
@@ -28,25 +33,20 @@
         <mxCell id="lpFblWUsz3aCrupPQczd-3" value="&lt;b&gt;occupancy_maze_simulator&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="560" y="55" width="160" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="_t85q0Rl3mmEDD3trs_B-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;startArrow=classic;startFill=1;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-4" target="lpFblWUsz3aCrupPQczd-29">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="340" y="115" />
-              <mxPoint x="340" y="425" />
-            </Array>
-          </mxGeometry>
-        </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-4" value="map_server" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="370" y="85" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-5" value="&lt;b&gt;nav2_map_server&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="400" y="55" width="60" height="30" as="geometry" />
         </mxCell>
+        <mxCell id="_t85q0Rl3mmEDD3trs_B-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-6" target="_t85q0Rl3mmEDD3trs_B-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-6" value="if mode = selected" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="585" y="159" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-8" value="&lt;b&gt;map_serverにサービスコール&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="554" y="235" width="192" height="100" as="geometry" />
+          <mxGeometry x="552" y="230" width="186" height="50" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-16" value="選択状態を示すGridmapの保存場所&lt;div&gt;(~/.ros/save/selected_gridmap.pgm)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="475" y="425" width="340" height="60" as="geometry" />
@@ -66,7 +66,7 @@
         <mxCell id="lpFblWUsz3aCrupPQczd-32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="1" source="lpFblWUsz3aCrupPQczd-29" target="lpFblWUsz3aCrupPQczd-31" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="lpFblWUsz3aCrupPQczd-29" value="&lt;b&gt;map_serverにサービスコール&lt;/b&gt;&lt;div&gt;map_urlを提供&lt;/div&gt;&lt;div&gt;gridmapをresponceで受け取る。&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+        <mxCell id="lpFblWUsz3aCrupPQczd-29" value="&lt;b&gt;/gridmap Subscribe&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="110" y="395" width="190" height="60" as="geometry" />
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-31" value="結果をアプリ上で可視化" style="rounded=1;whiteSpace=wrap;html=1;" parent="1" vertex="1">
@@ -85,9 +85,6 @@
         </mxCell>
         <mxCell id="lpFblWUsz3aCrupPQczd-34" value="gridmap_creatorとの&lt;div&gt;リアルタイム連携&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="450" y="500" width="140" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="_t85q0Rl3mmEDD3trs_B-1" value="map_saver使えね。多分バグ。publisherとsubscriber両方やる設定なのか？それとも、QOS（transition_local)が悪さしているのか、わからないが、map_io使ったほうがすっきりするしmap_saverは使わないことにする。（結局intrusion_detectorと似た構成に。もしかしたら同じかも）" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
-          <mxGeometry x="200" y="600" width="590" height="30" as="geometry" />
         </mxCell>
         <mxCell id="_t85q0Rl3mmEDD3trs_B-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=none;endFill=0;" edge="1" parent="1" source="_t85q0Rl3mmEDD3trs_B-3" target="lpFblWUsz3aCrupPQczd-16">
           <mxGeometry relative="1" as="geometry">
@@ -135,6 +132,20 @@
         <mxCell id="_t85q0Rl3mmEDD3trs_B-14" value="GridMap" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="_t85q0Rl3mmEDD3trs_B-13">
           <mxGeometry x="0.2584" y="-4" relative="1" as="geometry">
             <mxPoint x="2" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="_t85q0Rl3mmEDD3trs_B-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="_t85q0Rl3mmEDD3trs_B-16" target="lpFblWUsz3aCrupPQczd-29">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_t85q0Rl3mmEDD3trs_B-16" value="/gridmap&lt;div&gt;Publish&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="546" y="292" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="_t85q0Rl3mmEDD3trs_B-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="lpFblWUsz3aCrupPQczd-33" target="_t85q0Rl3mmEDD3trs_B-16">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="520" />
+              <mxPoint x="820" y="322" />
+            </Array>
           </mxGeometry>
         </mxCell>
       </root>

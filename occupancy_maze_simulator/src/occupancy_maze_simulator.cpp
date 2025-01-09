@@ -5,15 +5,15 @@
  */
 #include <occupancy_maze_simulator/occupancy_maze_simulator.hpp>
 
-#include <chrono>
-#include <string>
 #include <algorithm>
-#include <vector>
-#include <limits>
+#include <chrono>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <queue>
 #include <random>
+#include <string>
+#include <vector>
 
 namespace occupancy_maze_simulator
 {
@@ -88,7 +88,12 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   default_color_.b = 1.0;
   default_color_.a = 1.0;
 
-  occupancy_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", 10);
+  rclcpp::QoS qos_settings(10);
+  qos_settings.durability(rmw_qos_durability_policy_t::RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+
+  occupancy_grid_publisher_ =
+    this->create_publisher<nav_msgs::msg::OccupancyGrid>("gridmap", qos_settings);
+
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(robot_pose_topic_, 10);
   start_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("start_pose", 10);
@@ -113,8 +118,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
   load_map_client_ = this->create_client<nav2_msgs::srv::LoadMap>("/map_server/load_map");
-
-  save_map_client_ = this->create_client<nav2_msgs::srv::SaveMap>("/map_saver/save_map");
 
   selected_gridmap_subscriber_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
     "selected_gridmap", 10,
@@ -210,8 +213,9 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   } while (!path_exists);
 
   RCLCPP_INFO(this->get_logger(), "A path to the goal exists.");
-  publish_gridmap_timer_ = this->create_wall_timer(
-    std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+  // publish_gridmap_timer_ = this->create_wall_timer(
+  //   std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
+  publish_gridmap();
 
   last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
 
@@ -331,6 +335,7 @@ void OccupancyMazeSimulator::selected_gridmap_callback(
     return;
   }
   grid_map_ = *msg;
+  publish_gridmap();
   RCLCPP_INFO(this->get_logger(), "Received selected gridmap data.");
 }
 
