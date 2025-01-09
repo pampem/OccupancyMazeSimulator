@@ -18,6 +18,7 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <nav2_map_server/map_io.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -76,8 +77,6 @@ private:
 
   void reset_callback(std_msgs::msg::Empty::SharedPtr msg);
 
-  void handle_load_map_response(rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedFuture result);
-
   std_msgs::msg::ColorRGBA default_color_;
   void publish_text_marker(
     std::string visualize_text, geometry_msgs::msg::Pose marker_pose,
@@ -86,6 +85,8 @@ private:
   void record_statistics(std::string failed_msg = "");
 
   void failed_callback(std_msgs::msg::String::SharedPtr msg);
+
+  void selected_gridmap_callback(nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
@@ -110,6 +111,7 @@ private:
   double gridmap_origin_y_;
   float maze_density_;
   std::string obstacle_mode_;
+  std::string full_path_selected_gridmap_filename_;
   nav_msgs::msg::OccupancyGrid grid_map_;
   nav_msgs::msg::OccupancyGrid slam_grid_map_;
   std::string robot_pose_topic_;
@@ -146,6 +148,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr selected_gridmap_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator

@@ -23,7 +23,7 @@ def save_params_to_csv(file_path, params):
 def generate_launch_description():
     ld = LaunchDescription()
 
-    package_share_directory = get_package_share_directory(
+    occupancy_maze_simulator_dir = get_package_share_directory(
         'occupancy_maze_simulator')
 
     # Generate CSV filename with current date and time
@@ -83,7 +83,7 @@ def generate_launch_description():
     )
 
     rviz_config_path = os.path.join(
-        package_share_directory, 'rviz', 'config.rviz')
+        occupancy_maze_simulator_dir, 'rviz', 'config.rviz')
 
     rviz = Node(
         package='rviz2',

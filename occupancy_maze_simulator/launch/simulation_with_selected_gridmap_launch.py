@@ -114,6 +114,23 @@ def generate_launch_description(namespace: str = 'drone1'):
         namespace=namespace,
     )
 
+    current_script_dir = os.path.dirname(os.path.abspath(__file__))
+    # occupancy_maze_simulator_dir = get_package_share_directory(
+    #     'occupancy_maze_simulator')
+    frrt_flight_base_dir = os.path.abspath(os.path.join(current_script_dir, '..', '..', '..', '..', '..'))
+
+    gridmap_creator_dir = os.path.join(
+        frrt_flight_base_dir, 'occupancy_maze_simulator', 'gridmap_creator')
+    
+    if not os.path.isdir(gridmap_creator_dir):
+        raise FileNotFoundError(f"gridmap_creator directory not found at {frrt_flight_base_dir}")
+
+    gridmap_creator = ExecuteProcess(
+        cmd=["npm", "start"],
+        cwd=gridmap_creator_dir,
+        output="screen"
+    )
+
     # Save applied parameters to a CSV file for record-keeping
     applied_params = {**omc_params, **path_planner_params}
     # Generate CSV filename with current date and time
@@ -125,7 +142,7 @@ def generate_launch_description(namespace: str = 'drone1'):
     ld.add_action(map_server_launch)
     ld.add_action(
         TimerAction(
-            period=10.0,
+            period=2.0,
             actions=[omc_node],
         )
     )
@@ -135,6 +152,7 @@ def generate_launch_description(namespace: str = 'drone1'):
         ExecuteProcess(
             cmd=["echo", "simulation setup complete."], output="screen")
     )
+    ld.add_action(gridmap_creator)
 
     return ld
 

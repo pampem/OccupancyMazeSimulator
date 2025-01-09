@@ -109,7 +109,7 @@ export default function GridMap() {
 
   function fetchSelectedGridmap() {
     const homeDir = process.env.REACT_APP_HOME_DIR;
-    const mapUrl = `${homeDir}/.ros/save/saved_selected_gridmap.yaml`;
+    const mapUrl = `${homeDir}/.ros/save/selected_gridmap.yaml`;
     const request = new ROSLIB.ServiceRequest({
       map_url: mapUrl
     });
