@@ -113,7 +113,7 @@ def generate_launch_description(namespace: str = 'drone1'):
         # TODO: 複数台シミュレーションを実装した場合、ここはnamespaceを適用しないなど対応
         namespace=namespace,
     )
-
+    
     current_script_dir = os.path.dirname(os.path.abspath(__file__))
     # occupancy_maze_simulator_dir = get_package_share_directory(
     #     'occupancy_maze_simulator')
