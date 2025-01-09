@@ -39,6 +39,7 @@ export default function GridMap() {
   const [gridData, setGridData] = useState([]);
   const [selectedCells, setSelectedCells] = useState(new Set());
   const [gridInfo, setGridInfo] = useState(null);
+  const [isMouseDown, setIsMouseDown] = useState(false);
 
   useEffect(() => {
     gridmap_topic.subscribe(message => {
@@ -141,11 +142,22 @@ export default function GridMap() {
   }  
 
   return (
-    <div className="grid-map">
+    <div
+      className="grid-map"
+      onMouseUp={() => setIsMouseDown(false)}
+    >
       <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>Gridmap Creator</h1>
-      <div style={{ display: 'flex', flexDirection: 'column-reverse' }}>
+
+      {/* マウスを押しているかどうかは各セルだけでなく親要素で管理してもOK */}
+      <div
+        style={{ display: 'flex', flexDirection: 'column-reverse' }}
+      >
         {gridData.map((row, rowIndex) => (
-          <div key={rowIndex} className="grid-row" style={{ display: 'flex', flexDirection: 'row' }}>
+          <div
+            key={rowIndex}
+            className="grid-row"
+            style={{ display: 'flex', flexDirection: 'row' }}
+          >
             {row.map((cell, colIndex) => {
               const key = `${colIndex}-${rowIndex}`;
               const isSelected = selectedCells.has(key);
@@ -157,17 +169,35 @@ export default function GridMap() {
                   : cell.value === 100
                   ? 'occupied'
                   : 'free';
+
               return (
                 <div
                   key={key}
-                  onClick={() => handleCellClick(colIndex, rowIndex)}
                   className={`cell ${cellClass}`}
+                  // マウスが押されたとき
+                  onMouseDown={(e) => {
+                    // ドラッグ選択用フラグを true に
+                    setIsMouseDown(true);
+                    // 同時にセル選択処理を呼び出す
+                    handleCellClick(colIndex, rowIndex);
+                    // 他のイベントが発火しないように抑制 (必要に応じて)
+                    e.preventDefault();
+                  }}
+                  // セルにマウスが入ったとき (ドラッグ中なら選択)
+                  onMouseEnter={() => {
+                    if (isMouseDown) {
+                      handleCellClick(colIndex, rowIndex);
+                    }
+                  }}
+                  // セル上でマウスボタンを離した場合にもフラグを false に
+                  onMouseUp={() => setIsMouseDown(false)}
                 />
               );
             })}
           </div>
         ))}
       </div>
+
       <button onClick={confirmSelection} className="button">
         Apply
       </button>
