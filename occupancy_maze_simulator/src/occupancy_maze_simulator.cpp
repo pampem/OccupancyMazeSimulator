@@ -29,10 +29,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<float>("gridmap.y", 50);
   this->declare_parameter<float>("gridmap.origin_x", 0.0);
   this->declare_parameter<float>("gridmap.origin_y", 0.0);
-  this->declare_parameter<float>("start_pose.x", 5.0);
-  this->declare_parameter<float>("start_pose.y", 5.0);
-  this->declare_parameter<float>("target_pose.x", 45.0);
-  this->declare_parameter<float>("target_pose.y", 45.0);
   this->declare_parameter<float>("maze.density", 0.3);  // 障害物の密度（0.0～1.0）
   this->declare_parameter<int>("max_trial_count", 100);
   this->declare_parameter<double>("simulation_timeout", 100.0);  // 秒
@@ -46,10 +42,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   float gridmap_y = this->get_parameter("gridmap.y").as_double();
   this->get_parameter("gridmap.origin_x", gridmap_origin_x_);
   this->get_parameter("gridmap.origin_y", gridmap_origin_y_);
-  this->get_parameter("start_pose.x", start_pose_.pose.position.x);
-  this->get_parameter("start_pose.y", start_pose_.pose.position.y);
-  this->get_parameter("target_pose.x", target_pose_.pose.position.x);
-  this->get_parameter("target_pose.y", target_pose_.pose.position.y);
   this->get_parameter("maze.density", maze_density_);
   this->get_parameter("max_trial_count", max_trial_count_);
   this->get_parameter("simulation_timeout", timeout_);
@@ -69,20 +61,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   width_ = static_cast<int>(gridmap_x / resolution_);
   height_ = static_cast<int>(gridmap_y / resolution_);
 
-  start_pose_.header.frame_id = "odom";
-  start_pose_.pose.position.z = 0.0;
-  start_pose_.pose.orientation.x = 0.0;
-  start_pose_.pose.orientation.y = 0.0;
-  start_pose_.pose.orientation.z = 0.0;
-  start_pose_.pose.orientation.w = 1.0;
-
-  target_pose_.header.frame_id = "odom";
-  target_pose_.pose.position.z = 0.0;
-  target_pose_.pose.orientation.x = 0.0;
-  target_pose_.pose.orientation.y = 0.0;
-  target_pose_.pose.orientation.z = 0.0;
-  target_pose_.pose.orientation.w = 1.0;
-
   default_color_.r = 1.0;
   default_color_.g = 1.0;
   default_color_.b = 1.0;
@@ -96,9 +74,6 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   slam_grid_publisher_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("slam_gridmap", 10);
   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(robot_pose_topic_, 10);
-  start_pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("start_pose", 10);
-  target_pose_publisher_ =
-    this->create_publisher<geometry_msgs::msg::PoseStamped>("target_pose", 10);
   text_marker_publisher_ =
     this->create_publisher<visualization_msgs::msg::Marker>("text_marker", 10);
 
@@ -122,6 +97,21 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   selected_gridmap_subscriber_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
     "selected_gridmap", 10,
     std::bind(&OccupancyMazeSimulator::selected_gridmap_callback, this, std::placeholders::_1));
+
+  start_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "start_pose", 10, [this](geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+      start_pose_ = *msg;
+      start_pose_received_ = true;
+    });
+
+  target_pose_subscriber_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+    "target_pose", 10, [this](geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+      target_pose_ = *msg;
+      target_pose_received_ = true;
+    });
+
+  start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+  wait_for_messages();
 
   if (obstacle_mode_ == "select") {
     RCLCPP_INFO(this->get_logger(), "Select mode, loading selected gridmap.");
@@ -188,6 +178,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*msg*/)
 {
   RCLCPP_INFO(this->get_logger(), "Resetting the simulation environment.");
+  last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
+
   std::vector<Obstacle> obstacles;
   int count = 0;
   bool path_exists = false;
@@ -218,8 +210,6 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   // publish_gridmap_timer_ = this->create_wall_timer(
   //   std::chrono::seconds(1), std::bind(&OccupancyMazeSimulator::publish_gridmap, this));
   publish_gridmap();
-
-  last_update_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
 
   slam_grid_map_ = create_empty_grid_map();
 
@@ -475,9 +465,6 @@ void OccupancyMazeSimulator::publish_pose()
   }
 
   pose_publisher_->publish(pose_msg);
-
-  start_pose_publisher_->publish(start_pose_);
-  target_pose_publisher_->publish(target_pose_);
 }
 
 void OccupancyMazeSimulator::twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
@@ -685,6 +672,17 @@ void OccupancyMazeSimulator::publish_text_marker(
   marker.text = visualize_text;
 
   text_marker_publisher_->publish(marker);
+}
+
+void OccupancyMazeSimulator::wait_for_messages()
+{
+  rclcpp::Rate rate(10);
+  while (rclcpp::ok() && (!start_pose_received_ || !target_pose_received_)) {
+    RCLCPP_INFO(this->get_logger(), "Waiting for messages...");
+    rclcpp::spin_some(this->get_node_base_interface());
+    publish_pose();
+    rate.sleep();
+  }
 }
 // Alt option for robot position simulation Not TESTED, so comment out for now
 // void OccupancyMazeSimulator::simulate_drone_movement(
