@@ -88,6 +88,8 @@ private:
 
   void selected_gridmap_callback(nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 
+  void wait_for_messages();
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
@@ -95,10 +97,12 @@ private:
 
   geometry_msgs::msg::PoseStamped start_pose_;
   geometry_msgs::msg::PoseStamped target_pose_;
+  bool start_pose_received_ = false;
+  bool target_pose_received_ = false;
 
   double yaw_ = 0.0;
-  double robot_x_ = 0.0;
-  double robot_y_ = 0.0;
+  double robot_x_ = -20.0;
+  double robot_y_ = -20.0;
   double current_linear_velocity_ = 0.0;
   double current_angular_velocity_ = 0.0;
 
@@ -139,8 +143,6 @@ private:
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_publisher_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
   rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
@@ -148,6 +150,8 @@ private:
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr failed_subscriber_;
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr selected_gridmap_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr start_pose_subscriber_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr target_pose_subscriber_;
 };
 
 }  // namespace occupancy_maze_simulator

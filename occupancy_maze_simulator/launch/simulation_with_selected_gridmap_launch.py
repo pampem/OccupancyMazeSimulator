@@ -100,6 +100,21 @@ def generate_launch_description(namespace: str = 'drone1'):
         namespace=namespace,
     )
 
+    global_planner_node = Node(
+        package="path_planner",
+        executable="global_planner_node",
+        output="screen",
+        parameters=[
+            {
+                "mode": "static",
+                "pose_topic": "mavros/vision_pose/pose",
+                "goal_reached_tolerance": 1.0,
+            }
+        ],
+        arguments=["--ros-args", "--log-level", "info"],
+        namespace=namespace,
+    )
+
     omc_share_directory = get_package_share_directory(
         'occupancy_maze_simulator')
     rviz_config_path = os.path.join(
@@ -147,6 +162,7 @@ def generate_launch_description(namespace: str = 'drone1'):
         )
     )
     ld.add_action(path_planner_node)
+    ld.add_action(global_planner_node)
     ld.add_action(rviz)
     ld.add_action(
         ExecuteProcess(
