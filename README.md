@@ -37,6 +37,13 @@ occupancy_maze_simulator/occupancy_maze_simulator/asset/saved_map/selected_gridm
 `~/.ros/save/`
 以下にコピーしてください。
 
+また、gridmap_creatorのディレクトリに行き、
+```bash
+npm install
+```
+でアプリケーションの起動準備をしてください。
+(npmが入っていなければaptで入れましょう。 ->  sudo apt install npm)
+
 その後、
 ```bash
 ros2 launch occupancy_maze_simulator simulation_with_selected_gridmap_launch.py
