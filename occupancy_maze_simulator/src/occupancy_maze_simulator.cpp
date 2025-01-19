@@ -113,6 +113,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
       target_pose_received_ = true;
     });
 
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
   start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
   wait_for_messages();
 
@@ -453,6 +455,22 @@ void OccupancyMazeSimulator::publish_pose()
   pose_msg.pose.orientation.y = q.y();
   pose_msg.pose.orientation.z = q.z();
   pose_msg.pose.orientation.w = q.w();
+
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "odom";
+  transform.child_frame_id = "base_link";
+
+  transform.transform.translation.x = robot_x_;
+  transform.transform.translation.y = robot_y_;
+  transform.transform.translation.z = 0.0;
+
+  transform.transform.rotation.x = q.x();
+  transform.transform.rotation.y = q.y();
+  transform.transform.rotation.z = q.z();
+  transform.transform.rotation.w = q.w();
+
+  tf_broadcaster_->sendTransform(transform);
 
   auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
   double elapsed_time = (current_time - start_time_).seconds();
