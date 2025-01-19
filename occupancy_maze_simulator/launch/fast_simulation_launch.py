@@ -76,6 +76,7 @@ def generate_launch_description():
         "lidar_points_gridmap.width": 20,
         "lidar_points_gridmap.height": 20,
         "lidar_points_gridmap.min_points_to_fill_cell": 2,
+        "attractive_gain_with_rotational_force": 0.5,
     }
 
     # "attractive_force.max_distance": 2.0,

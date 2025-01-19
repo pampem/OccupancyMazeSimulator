@@ -719,31 +719,55 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
   pointcloud_msg.is_bigendian = false;
   pointcloud_msg.is_dense = true;
 
-  // SLAMマップの占有セルに基づいて点群を生成
+  // 点群データキャッシュ用
   std::vector<float> points_x;
   std::vector<float> points_y;
   std::vector<float> points_z;
+
   for (unsigned int y = 0; y < slam_grid_map_.info.height; ++y) {
     for (unsigned int x = 0; x < slam_grid_map_.info.width; ++x) {
       int index = y * slam_grid_map_.info.width + x;
+
       if (slam_grid_map_.data[index] == 100) {  // 占有セル
+        // 既にキャッシュされている場合はスキップ
+        if (cell_pointcloud_cache_.find(index) != cell_pointcloud_cache_.end()) {
+          const auto &cell_points = cell_pointcloud_cache_[index];
+          for (const auto &p : cell_points) {
+            points_x.push_back(p.x);
+            points_y.push_back(p.y);
+            points_z.push_back(p.z);
+          }
+          continue;
+        }
+
+        // 新規点群を生成
         double cell_origin_x =
           slam_grid_map_.info.origin.position.x + x * slam_grid_map_.info.resolution;
         double cell_origin_y =
           slam_grid_map_.info.origin.position.y + y * slam_grid_map_.info.resolution;
 
-        // ランダムな点数と位置で点群を生成
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dist_pos(0, slam_grid_map_.info.resolution);
         std::uniform_int_distribution<> dist_points(5, 10);
         int num_points = dist_points(gen);
 
+        std::vector<geometry_msgs::msg::Point> cell_points;
         for (int i = 0; i < num_points; ++i) {
-          points_x.push_back(cell_origin_x + dist_pos(gen));
-          points_y.push_back(cell_origin_y + dist_pos(gen));
-          points_z.push_back(0.0);  // Z軸は0に固定
+          geometry_msgs::msg::Point point;
+          point.x = cell_origin_x + dist_pos(gen);
+          point.y = cell_origin_y + dist_pos(gen);
+          point.z = 0.0;  // Z軸は0に固定
+
+          points_x.push_back(point.x);
+          points_y.push_back(point.y);
+          points_z.push_back(point.z);
+
+          cell_points.push_back(point);
         }
+
+        // キャッシュに保存
+        cell_pointcloud_cache_[index] = cell_points;
       }
     }
   }

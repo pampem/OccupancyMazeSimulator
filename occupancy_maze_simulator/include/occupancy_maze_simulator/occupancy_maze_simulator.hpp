@@ -30,6 +30,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace occupancy_maze_simulator
@@ -114,11 +115,11 @@ private:
 
   int width_;
   int height_;
-
   float resolution_;
 
   double gridmap_origin_x_;
   double gridmap_origin_y_;
+  std::unordered_map<int, std::vector<geometry_msgs::msg::Point>> cell_pointcloud_cache_;
   float maze_density_;
   std::string obstacle_mode_;
   std::string full_path_selected_gridmap_filename_;
