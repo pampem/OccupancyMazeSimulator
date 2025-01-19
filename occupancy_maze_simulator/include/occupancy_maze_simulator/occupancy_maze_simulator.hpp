@@ -19,6 +19,8 @@
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -90,6 +92,8 @@ private:
 
   void wait_for_messages();
 
+  void generate_and_publish_pointcloud();
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
@@ -145,6 +149,7 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
   rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
