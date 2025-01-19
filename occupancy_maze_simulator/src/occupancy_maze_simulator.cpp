@@ -724,6 +724,11 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
   std::vector<float> points_y;
   std::vector<float> points_z;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dist_pos(0, slam_grid_map_.info.resolution);
+  std::uniform_int_distribution<> dist_points(5, 10);
+
   for (unsigned int y = 0; y < slam_grid_map_.info.height; ++y) {
     for (unsigned int x = 0; x < slam_grid_map_.info.width; ++x) {
       int index = y * slam_grid_map_.info.width + x;
@@ -746,10 +751,6 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
         double cell_origin_y =
           slam_grid_map_.info.origin.position.y + y * slam_grid_map_.info.resolution;
 
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_real_distribution<> dist_pos(0, slam_grid_map_.info.resolution);
-        std::uniform_int_distribution<> dist_points(5, 10);
         int num_points = dist_points(gen);
 
         std::vector<geometry_msgs::msg::Point> cell_points;
