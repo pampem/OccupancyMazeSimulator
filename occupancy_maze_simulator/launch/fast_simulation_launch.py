@@ -107,6 +107,9 @@ def generate_launch_description():
                 "mode": "static",
                 "pose_topic": "mavros/vision_pose/pose",
                 "goal_reached_tolerance": 1.0,
+                "waypoints0.x": 20.0,
+                "waypoints0.y": 20.0,
+                "waypoints0.z": 0.0,
             }
         ],
         arguments=["--ros-args", "--log-level", "info"],

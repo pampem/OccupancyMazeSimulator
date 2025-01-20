@@ -108,10 +108,13 @@ private:
   bool target_pose_received_ = false;
 
   double yaw_ = 0.0;
-  double robot_x_ = -20.0;
-  double robot_y_ = -20.0;
+  double robot_x_ = 0.0;
+  double robot_y_ = 0.0;
   double current_linear_velocity_ = 0.0;
   double current_angular_velocity_ = 0.0;
+
+  Eigen::Vector3f start_position_;
+  double start_yaw_;
 
   int width_;
   int height_;

@@ -35,6 +35,10 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter<std::string>("robot_pose_topic", "mavros/vision_pose/pose");
   this->declare_parameter("robot_velocity_topic", "mavros/setpoint_velocity/cmd_vel_unstamped");
   this->declare_parameter("robot_count", robot_count_);
+  this->declare_parameter("start_position.x", -20.0);
+  this->declare_parameter("start_position.y", -20.0);
+  this->declare_parameter("start_position.z", 0.0);
+  this->declare_parameter("start_position.yaw", 0.0);
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -48,6 +52,10 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("robot_pose_topic", robot_pose_topic_);
   this->get_parameter("robot_velocity_topic", robot_velocity_topic_);
   this->get_parameter("robot_count", robot_count_);
+  this->get_parameter("start_position.x", start_position_.x());
+  this->get_parameter("start_position.y", start_position_.y());
+  this->get_parameter("start_position.z", start_position_.z());
+  this->get_parameter("start_position.yaw", start_yaw_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -224,9 +232,9 @@ void OccupancyMazeSimulator::reset_callback(std_msgs::msg::Empty::SharedPtr /*ms
   publish_pose_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(100), std::bind(&OccupancyMazeSimulator::publish_pose, this));
 
-  yaw_ = start_pose_.pose.orientation.z;
-  robot_x_ = start_pose_.pose.position.x;
-  robot_y_ = start_pose_.pose.position.y;
+  yaw_ = start_yaw_;
+  robot_x_ = start_position_.x();
+  robot_y_ = start_position_.y();
 
   current_linear_velocity_ = 0.0;
   current_angular_velocity_ = 0.0;
