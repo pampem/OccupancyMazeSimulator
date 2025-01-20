@@ -92,6 +92,9 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
 
   emergency_stop_publisher_ = this->create_publisher<std_msgs::msg::Empty>("emergency_stop", 10);
 
+  pointcloud_publisher_ =
+    this->create_publisher<sensor_msgs::msg::PointCloud2>("glim_ros/points", 10);
+
   load_map_client_ = this->create_client<nav2_msgs::srv::LoadMap>("/map_server/load_map");
 
   selected_gridmap_subscriber_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
@@ -109,6 +112,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
       target_pose_ = *msg;
       target_pose_received_ = true;
     });
+
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
   start_time_ = rclcpp::Clock(RCL_STEADY_TIME).now();
   wait_for_messages();
@@ -451,6 +456,22 @@ void OccupancyMazeSimulator::publish_pose()
   pose_msg.pose.orientation.z = q.z();
   pose_msg.pose.orientation.w = q.w();
 
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = this->get_clock()->now();
+  transform.header.frame_id = "odom";
+  transform.child_frame_id = "base_link";
+
+  transform.transform.translation.x = robot_x_;
+  transform.transform.translation.y = robot_y_;
+  transform.transform.translation.z = 0.0;
+
+  transform.transform.rotation.x = q.x();
+  transform.transform.rotation.y = q.y();
+  transform.transform.rotation.z = q.z();
+  transform.transform.rotation.w = q.w();
+
+  tf_broadcaster_->sendTransform(transform);
+
   auto current_time = rclcpp::Clock(RCL_STEADY_TIME).now();
   double elapsed_time = (current_time - start_time_).seconds();
   if (elapsed_time > timeout_) {
@@ -610,6 +631,7 @@ void OccupancyMazeSimulator::simulate_lidar_scan()
 void OccupancyMazeSimulator::publish_slam_gridmap()
 {
   simulate_lidar_scan();
+  generate_and_publish_pointcloud();
   slam_grid_map_.header.stamp = this->get_clock()->now();
   slam_grid_publisher_->publish(slam_grid_map_);
 }
@@ -684,6 +706,96 @@ void OccupancyMazeSimulator::wait_for_messages()
     rate.sleep();
   }
 }
+
+void OccupancyMazeSimulator::generate_and_publish_pointcloud()
+{
+  // PointCloud2メッセージを準備
+  sensor_msgs::msg::PointCloud2 pointcloud_msg;
+  pointcloud_msg.header.stamp = this->get_clock()->now();
+  pointcloud_msg.header.frame_id = "odom";
+
+  // PointCloud2メッセージのフィールドを設定
+  pointcloud_msg.height = 1;  // PointCloud2は1Dデータとして送信
+  pointcloud_msg.is_bigendian = false;
+  pointcloud_msg.is_dense = true;
+
+  // 点群データキャッシュ用
+  std::vector<float> points_x;
+  std::vector<float> points_y;
+  std::vector<float> points_z;
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dist_pos(0, slam_grid_map_.info.resolution);
+  std::uniform_int_distribution<> dist_points(5, 10);
+
+  for (unsigned int y = 0; y < slam_grid_map_.info.height; ++y) {
+    for (unsigned int x = 0; x < slam_grid_map_.info.width; ++x) {
+      int index = y * slam_grid_map_.info.width + x;
+
+      if (slam_grid_map_.data[index] == 100) {  // 占有セル
+        // 既にキャッシュされている場合はスキップ
+        if (cell_pointcloud_cache_.find(index) != cell_pointcloud_cache_.end()) {
+          const auto &cell_points = cell_pointcloud_cache_[index];
+          for (const auto &p : cell_points) {
+            points_x.push_back(p.x);
+            points_y.push_back(p.y);
+            points_z.push_back(p.z);
+          }
+          continue;
+        }
+
+        // 新規点群を生成
+        double cell_origin_x =
+          slam_grid_map_.info.origin.position.x + x * slam_grid_map_.info.resolution;
+        double cell_origin_y =
+          slam_grid_map_.info.origin.position.y + y * slam_grid_map_.info.resolution;
+
+        int num_points = dist_points(gen);
+
+        std::vector<geometry_msgs::msg::Point> cell_points;
+        for (int i = 0; i < num_points; ++i) {
+          geometry_msgs::msg::Point point;
+          point.x = cell_origin_x + dist_pos(gen);
+          point.y = cell_origin_y + dist_pos(gen);
+          point.z = 0.0;  // Z軸は0に固定
+
+          points_x.push_back(point.x);
+          points_y.push_back(point.y);
+          points_z.push_back(point.z);
+
+          cell_points.push_back(point);
+        }
+
+        // キャッシュに保存
+        cell_pointcloud_cache_[index] = cell_points;
+      }
+    }
+  }
+
+  // PointCloud2のデータ構造に変換
+  size_t num_points = points_x.size();
+  pointcloud_msg.width = static_cast<uint32_t>(num_points);
+  pointcloud_msg.row_step = pointcloud_msg.width * sizeof(float) * 3;  // x, y, zの3要素
+  pointcloud_msg.point_step = sizeof(float) * 3;
+
+  // フィールド定義
+  sensor_msgs::PointCloud2Modifier modifier(pointcloud_msg);
+  modifier.setPointCloud2FieldsByString(1, "xyz");
+
+  // データを埋める
+  sensor_msgs::PointCloud2Iterator<float> iter_x(pointcloud_msg, "x");
+  sensor_msgs::PointCloud2Iterator<float> iter_y(pointcloud_msg, "y");
+  sensor_msgs::PointCloud2Iterator<float> iter_z(pointcloud_msg, "z");
+  for (size_t i = 0; i < num_points; ++i, ++iter_x, ++iter_y, ++iter_z) {
+    *iter_x = points_x[i];
+    *iter_y = points_y[i];
+    *iter_z = points_z[i];
+  }
+
+  pointcloud_publisher_->publish(pointcloud_msg);
+}
+
 // Alt option for robot position simulation Not TESTED, so comment out for now
 // void OccupancyMazeSimulator::simulate_drone_movement(
 //   geometry_msgs::msg::Twist::SharedPtr target_twist)

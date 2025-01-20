@@ -40,6 +40,7 @@ ament_target_dependencies(occupancy_maze_simulator
   std_msgs
   visualization_msgs
   nav2_map_server
+  sensor_msgs
 )
 
 target_include_directories(

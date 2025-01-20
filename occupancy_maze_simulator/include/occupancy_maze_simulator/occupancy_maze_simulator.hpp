@@ -12,20 +12,25 @@
 #include <rclcpp/utilities.hpp>
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav2_msgs/srv/load_map.hpp>
 #include <nav2_msgs/srv/save_map.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <std_msgs/msg/empty.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
 #include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
 #include <limits>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace occupancy_maze_simulator
@@ -90,6 +95,8 @@ private:
 
   void wait_for_messages();
 
+  void generate_and_publish_pointcloud();
+
   rclcpp::TimerBase::SharedPtr publish_pose_timer_;
   rclcpp::TimerBase::SharedPtr publish_gridmap_timer_;
   rclcpp::TimerBase::SharedPtr publish_slam_gridmap_timer_;
@@ -108,11 +115,11 @@ private:
 
   int width_;
   int height_;
-
   float resolution_;
 
   double gridmap_origin_x_;
   double gridmap_origin_y_;
+  std::unordered_map<int, std::vector<geometry_msgs::msg::Point>> cell_pointcloud_cache_;
   float maze_density_;
   std::string obstacle_mode_;
   std::string full_path_selected_gridmap_filename_;
@@ -138,6 +145,7 @@ private:
 
   tf2_ros::Buffer tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr slam_grid_publisher_;
@@ -145,6 +153,7 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr text_marker_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr reset_publisher_;
   rclcpp::Publisher<std_msgs::msg::Empty>::SharedPtr emergency_stop_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_publisher_;
   rclcpp::Client<nav2_msgs::srv::LoadMap>::SharedPtr load_map_client_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_subscriber_;
