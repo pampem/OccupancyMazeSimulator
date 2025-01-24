@@ -39,6 +39,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter("start_position.y", -20.0);
   this->declare_parameter("start_position.z", 0.0);
   this->declare_parameter("start_position.yaw", 0.0);
+  this->declare_parameter("odom_frame_id", "odom");
+  this->declare_parameter("base_link_frame_id", "base_link");
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -56,6 +58,8 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("start_position.y", start_position_.y());
   this->get_parameter("start_position.z", start_position_.z());
   this->get_parameter("start_position.yaw", start_yaw_);
+  this->get_parameter("odom_frame_id", odom_frame_id_);
+  this->get_parameter("base_link_frame_id", base_link_frame_id_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -277,7 +281,7 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_grid_map(
   grid_msg.info.origin.position.y = gridmap_origin_y_;
   grid_msg.info.origin.position.z = 0.0;
   grid_msg.info.origin.orientation.w = 1.0;
-  grid_msg.header.frame_id = "odom";
+  grid_msg.header.frame_id = odom_frame_id_;
   grid_msg.header.stamp = this->get_clock()->now();
   grid_msg.data.resize(width_ * height_, 0);
 
@@ -308,7 +312,7 @@ nav_msgs::msg::OccupancyGrid OccupancyMazeSimulator::create_empty_grid_map()
   grid_msg.info.origin.position.y = gridmap_origin_y_;
   grid_msg.info.origin.position.z = 0.0;
   grid_msg.info.origin.orientation.w = 1.0;
-  grid_msg.header.frame_id = "odom";
+  grid_msg.header.frame_id = odom_frame_id_;
   grid_msg.header.stamp = this->get_clock()->now();
   grid_msg.data.resize(width_ * height_, 0);
 
@@ -452,7 +456,7 @@ void OccupancyMazeSimulator::publish_pose()
 {
   geometry_msgs::msg::PoseStamped pose_msg;
   pose_msg.header.stamp = this->get_clock()->now();
-  pose_msg.header.frame_id = "odom";
+  pose_msg.header.frame_id = odom_frame_id_;
   pose_msg.pose.position.x = robot_x_;
   pose_msg.pose.position.y = robot_y_;
   pose_msg.pose.position.z = 0.0;
@@ -466,8 +470,8 @@ void OccupancyMazeSimulator::publish_pose()
 
   geometry_msgs::msg::TransformStamped transform;
   transform.header.stamp = this->get_clock()->now();
-  transform.header.frame_id = "odom";
-  transform.child_frame_id = "base_link";
+  transform.header.frame_id = odom_frame_id_;
+  transform.child_frame_id = base_link_frame_id_;
 
   transform.transform.translation.x = robot_x_;
   transform.transform.translation.y = robot_y_;
@@ -686,7 +690,7 @@ void OccupancyMazeSimulator::publish_text_marker(
   std_msgs::msg::ColorRGBA text_color)
 {
   visualization_msgs::msg::Marker marker;
-  marker.header.frame_id = "odom";
+  marker.header.frame_id = odom_frame_id_;
   marker.header.stamp = this->now();
   marker.ns = "text_marker";
   marker.id = 999;
@@ -720,7 +724,7 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
   // PointCloud2メッセージを準備
   sensor_msgs::msg::PointCloud2 pointcloud_msg;
   pointcloud_msg.header.stamp = this->get_clock()->now();
-  pointcloud_msg.header.frame_id = "odom";
+  pointcloud_msg.header.frame_id = odom_frame_id_;
 
   // PointCloud2メッセージのフィールドを設定
   pointcloud_msg.height = 1;  // PointCloud2は1Dデータとして送信
@@ -854,7 +858,7 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
 //   // PoseStampedメッセージの更新
 //   geometry_msgs::msg::PoseStamped pose_msg;
 //   pose_msg.header.stamp = current_time;
-//   pose_msg.header.frame_id = "odom";
+//   pose_msg.header.frame_id = odom_frame_id_;
 //   pose_msg.pose.position.x = robot_x_;
 //   pose_msg.pose.position.y = robot_y_;
 //   pose_msg.pose.position.z = 0.0;
