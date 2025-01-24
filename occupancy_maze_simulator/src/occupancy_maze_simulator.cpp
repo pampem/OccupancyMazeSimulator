@@ -181,8 +181,11 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   std::filesystem::create_directories(evaluation_dir);
 
   std::filesystem::path prefix_path(csv_stat_file_name_prefix_);
-  std::filesystem::path output_file_name =
-    prefix_path.concat("evaluated_data_").concat(timestamp).concat(".csv");
+  std::filesystem::path output_file_name = std::filesystem::path(timestamp)
+                                             .concat("_")
+                                             .concat(csv_stat_file_name_prefix_)
+                                             .concat("_evaluated_data.csv");
+
   csv_stat_file_name_ = (evaluation_dir / output_file_name).string();
 
   const std::string headers[] = {

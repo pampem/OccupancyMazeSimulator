@@ -29,7 +29,9 @@ def generate_launch_description():
 
     # Generate CSV filename with current date and time
     current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    save_csv_file_path = os.path.join(f'data_rosparam_{current_date}.csv')
+    evaluation_dir = os.path.join(os.path.expanduser("~"), ".ros", "occupancy_maze_simulator", "evaluation")
+    os.makedirs(evaluation_dir, exist_ok=True)
+    save_csv_file_path = os.path.join(evaluation_dir, f"{current_date}_data_rosparam.csv")
 
     namespaces = []
     for i in range(4):
