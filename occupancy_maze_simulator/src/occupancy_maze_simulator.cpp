@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -41,6 +42,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->declare_parameter("start_position.yaw", 0.0);
   this->declare_parameter("odom_frame_id", "odom");
   this->declare_parameter("base_link_frame_id", "base_link");
+  this->declare_parameter("csv_stat_file_name_prefix", "");
 
   this->get_parameter("obstacle_mode", obstacle_mode_);
   this->get_parameter("gridmap.resolution", resolution_);
@@ -60,6 +62,7 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   this->get_parameter("start_position.yaw", start_yaw_);
   this->get_parameter("odom_frame_id", odom_frame_id_);
   this->get_parameter("base_link_frame_id", base_link_frame_id_);
+  this->get_parameter("csv_stat_file_name_prefix", csv_stat_file_name_prefix_);
 
   // 得たParmsを表示
   RCLCPP_INFO(
@@ -172,7 +175,15 @@ OccupancyMazeSimulator::OccupancyMazeSimulator(const rclcpp::NodeOptions & optio
   ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d_%H-%M-%S");
   std::string timestamp = ss.str();
 
-  csv_stat_file_name_ = "data_statistics_" + timestamp + ".csv";
+  std::filesystem::path home_dir(std::getenv("HOME"));
+  std::filesystem::path evaluation_dir =
+    home_dir / ".ros" / "occupancy_maze_simulator" / "evaluation";
+  std::filesystem::create_directories(evaluation_dir);
+
+  std::filesystem::path prefix_path(csv_stat_file_name_prefix_);
+  std::filesystem::path output_file_name =
+    prefix_path.concat("evaluated_data_").concat(timestamp).concat(".csv");
+  csv_stat_file_name_ = (evaluation_dir / output_file_name).string();
 
   const std::string headers[] = {
     "Trial Count", "Is Reached To Goal",    "Is Failed",     "Failed Msg",
@@ -748,8 +759,8 @@ void OccupancyMazeSimulator::generate_and_publish_pointcloud()
       if (slam_grid_map_.data[index] == 100) {  // 占有セル
         // 既にキャッシュされている場合はスキップ
         if (cell_pointcloud_cache_.find(index) != cell_pointcloud_cache_.end()) {
-          const auto &cell_points = cell_pointcloud_cache_[index];
-          for (const auto &p : cell_points) {
+          const auto & cell_points = cell_pointcloud_cache_[index];
+          for (const auto & p : cell_points) {
             points_x.push_back(p.x);
             points_y.push_back(p.y);
             points_z.push_back(p.z);

@@ -52,6 +52,7 @@ def generate_launch_description():
         "robot_velocity_topic": "mavros/setpoint_velocity/cmd_vel_unstamped",
         "odom_frame": "",  # will be set below
         "base_link_frame": "",  # will be set below
+        "csv_stat_file_name_prefix": "",  # will be set below
     }
 
     path_planner_params = {
@@ -81,6 +82,7 @@ def generate_launch_description():
         updated_omc_params = dict(omc_params)
         updated_omc_params["odom_frame_id"] = f"{ns}_odom"
         updated_omc_params["base_link_frame_id"] = f"{ns}_base_link"
+        updated_omc_params["csv_stat_file_name_prefix"] = f"{ns}_"
 
         updated_path_planner_params = dict(path_planner_params)
         updated_path_planner_params["odom_frame_id"] = f"{ns}_odom"

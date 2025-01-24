@@ -133,6 +133,7 @@ private:
   int robot_count_ = 1;
   std::string odom_frame_id_;
   std::string base_link_frame_id_;
+  std::string csv_stat_file_name_prefix_;
 
   // 自動評価のための変数
   std::string csv_stat_file_name_;
